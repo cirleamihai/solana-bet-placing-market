@@ -10,7 +10,15 @@ pub struct Market {
     pub vault: Pubkey,
     pub authority: Pubkey, // Who can resolve
     pub resolved: bool,
-    pub outcome: Option<u8>, // 0 = No, 1 = Yes
+    pub outcome: Option<u8>, // 0 = No, 1 = Yes,
+    pub bump: u8,
+}
+
+impl Market {
+    // Calculate the required space. Remember: 8 bytes for the discriminator.
+    // Here we have five Pubkeys (32 bytes each), one bool (1 byte), an Option<u8> (2 bytes), and one u8.
+    // Total = 32*5 + 1 + 2 + 1 = 160 + 4 = 164 bytes.
+    pub const LEN: usize = 8 + 32 * 5  + 1 + 2 + 1;
 }
 
 #[derive(Accounts)]
@@ -52,7 +60,8 @@ pub struct InitializeMarket<'info> {
     // USD Token (your stable token)
     pub usd_mint: Account<'info, Mint>,
 
-    /// CHECK: just an associated token account owned by market PDA
+    /// The vault account where the USD tokens are escrowed.
+    /// Its authority is also set to the market PDA.
     #[account(
         init,
         seeds = [b"vault", market.key().as_ref()],
@@ -63,9 +72,11 @@ pub struct InitializeMarket<'info> {
     )]
     pub vault: Account<'info, TokenAccount>,
 
+    /// The account that pays for the initialization.
     #[account(mut)]
     pub authority: Signer<'info>,
 
+    /// Programs and sysvars.
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>,
