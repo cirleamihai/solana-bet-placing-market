@@ -39,6 +39,11 @@ pub mod solana_bet_placing_market {
 
         Ok(())
     }
+
+    pub fn add_liquidity(ctx: Context<AddLiquidity>, usd_amount: u64) -> Result<()> {
+
+        Ok(())
+    }
 }
 
 #[account]
@@ -166,6 +171,41 @@ pub struct InitializePool<'info> {
 
     /// Programs and sysvars.
     pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct AddLiquidity<'info> {
+    #[account(mut)]
+    pub pool: Account<'info, MarketPool>,
+
+    #[account(mut, has_one = usd_mint, has_one = vault)]
+    pub market: Account<'info, Market>,
+
+    #[account(mut)]
+    pub vault: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub usd_mint: Account<'info, Mint>,
+
+    #[account(mut)]
+    pub yes_mint: Account<'info, Mint>,
+
+    #[account(mut)]
+    pub no_mint: Account<'info, Mint>,
+
+    #[account(mut)]
+    pub user_usd_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub user_yes_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub user_no_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub user: Signer<'info>,
+
     pub token_program: Program<'info, Token>,
 }
 
