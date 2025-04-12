@@ -129,6 +129,8 @@ pub struct MarketPool {
     pub market: Pubkey,
     pub yes_liquidity: u64,
     pub no_liquidity: u64,
+    pub liquidity_value: u64,
+    pub liquidity_shares: u64,
     pub usd_collateral: u64,
     pub total_yes_mints: u64,
     pub total_no_mints: u64,
@@ -137,9 +139,9 @@ pub struct MarketPool {
 
 impl MarketPool {
     // Calculate the required space. Remember: 8 bytes for the discriminator.
-    // Here we have one Pubkey (32 bytes), five u64 (8 bytes each), and one u8.
-    // Total = 32 + 8*5 + 1 = 32 + 40 + 1 = 73 bytes.
-    pub const LEN: usize = 8 + 32 + 8 * 5 + 1;
+    // Here we have one Pubkey (32 bytes), seven u64 (8 bytes each), and one u8.
+    // Total = 32 + 8*7 + 1 = 32 + 40 + 1 = 73 bytes.
+    pub const LEN: usize = 8 + 32 + 8 * 7 + 1;
 }
 
 #[derive(Accounts)]
