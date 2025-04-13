@@ -1,11 +1,14 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_lang::error_code;
 
 declare_id!("3waVbK9Pps4X1ZwS5GbwDQKmX5syrwe6guwnyN3YJfRc");
 
 #[program]
 pub mod solana_bet_placing_market {
+    use anchor_spl::token;
+    use anchor_spl::token::spl_token::instruction::TokenInstruction::Transfer;
     use super::*;
 
     pub fn create_new_market(ctx: Context<InitializeMarket>) -> Result<()> {
@@ -41,6 +44,28 @@ pub mod solana_bet_placing_market {
     }
 
     pub fn add_liquidity(ctx: Context<AddLiquidity>, usd_amount: u64) -> Result<()> {
+        require!(usd_amount > 0, MarketError::Zero);
+
+        let pool = &mut ctx.accounts.pool;
+        let market = &mut ctx.accounts.market;
+
+        // Transfer the usd to the market vault
+        let cpi_accounts = token::Transfer {
+            from: ctx.accounts.user_usd_account.to_account_info().clone(),
+            to: ctx.accounts.vault.to_account_info().clone(),
+            authority: ctx.accounts.user.to_account_info().clone(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::transfer(cpi_ctx, usd_amount)?;
+
+        // Now we are left with
+
+        // 1. Minting the equal number of YES and NO tokens
+        // TODO
+
+        // 2. Updating the pool with the new values
+        pool.usd_collateral += usd_amount;
 
         Ok(())
     }
@@ -207,5 +232,18 @@ pub struct AddLiquidity<'info> {
     pub user: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
+}
+
+
+#[error_code]
+pub enum MarketError {
+    #[msg("The amount must be greater than zero.")]
+    Zero,
+    #[msg("The market is already resolved.")]
+    MarketResolved,
+    #[msg("The market is not resolved yet.")]
+    MarketNotResolved,
+    #[msg("The market is not initialized.")]
+    MarketNotInitialized,
 }
 
