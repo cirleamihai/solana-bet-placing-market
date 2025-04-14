@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use anchor_lang::error_code;
+use anchor_spl::token;
 
 declare_id!("3waVbK9Pps4X1ZwS5GbwDQKmX5syrwe6guwnyN3YJfRc");
 
@@ -47,7 +48,7 @@ pub mod solana_bet_placing_market {
         require!(usd_amount > 0, MarketError::Zero);
 
         let pool = &mut ctx.accounts.pool;
-        let market = &mut ctx.accounts.market;
+        let market = & ctx.accounts.market;
 
         // Transfer the usd to the market vault
         let cpi_accounts = token::Transfer {
@@ -61,14 +62,74 @@ pub mod solana_bet_placing_market {
 
         // Now we are left with
 
-        // 1. Minting the equal number of YES and NO tokens
-        // TODO
+        // 1. Minting the equal number of YES and NO tokens in case
+        // the pool has equal chances for both outcomes.
+        if pool.yes_liquidity == pool.no_liquidity {
+            mint_outcome(
+                &ctx.accounts.yes_mint,
+                &ctx.accounts.user_yes_account,
+                market,
+                &ctx.accounts.token_program,
+                usd_amount,
+                &[
+                    b"market",
+                    market.authority.as_ref(),
+                    &market.bump.to_le_bytes(),
+                ]
+            )?;
+
+            mint_outcome(
+                &ctx.accounts.no_mint,
+                &ctx.accounts.user_no_account,
+                market,
+                &ctx.accounts.token_program,
+                usd_amount,
+                &[
+                    b"market",
+                    market.authority.as_ref(),
+                    &market.bump.to_le_bytes(),
+                ]
+            )?;
+
+            // Once added, we should also update the pool yes mints with the new values
+            pool.yes_liquidity += usd_amount;
+            pool.no_liquidity += usd_amount;
+            pool.total_yes_mints += usd_amount;
+            pool.total_no_mints += usd_amount;
+
+            // And also update the liquidity values & shares
+            pool.liquidity_value += usd_amount;
+            pool.liquidity_shares += usd_amount;
+        }
 
         // 2. Updating the pool with the new values
         pool.usd_collateral += usd_amount;
 
         Ok(())
     }
+}
+
+fn mint_outcome<'info>(
+    mint: &Account<'info, Mint>,
+    to_account: &Account<'info, TokenAccount>,
+    market: &Account<'info, Market>,
+    token_program: &Program<'info, Token>,
+    amount: u64,
+    signer: &[&[u8]]
+) -> Result<()> {
+    // Creating the context useful for the minting
+    let cpi_context = CpiContext::new_with_signer(
+        token_program.to_account_info(),
+        token::MintTo {
+            mint: mint.to_account_info(),
+            to: to_account.to_account_info(),
+            authority: market.to_account_info(),
+        },
+        &[signer]
+    );
+
+    // Once created the context, then mint
+    token::mint_to(cpi_context, amount)
 }
 
 #[account]
@@ -80,6 +141,19 @@ pub struct Market {
     pub authority: Pubkey, // Who can resolve
     pub resolved: bool,
     pub outcome: Option<u8>, // 0 = No, 1 = Yes,
+    pub bump: u8,
+}
+
+#[account]
+pub struct MarketPool {
+    pub market: Pubkey,
+    pub yes_liquidity: u64,
+    pub no_liquidity: u64,
+    pub liquidity_value: u64,
+    pub liquidity_shares: u64,
+    pub usd_collateral: u64,
+    pub total_yes_mints: u64,
+    pub total_no_mints: u64,
     pub bump: u8,
 }
 
@@ -152,19 +226,6 @@ pub struct InitializeMarket<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
 
     pub clock: Sysvar<'info, Clock>,
-}
-
-#[account]
-pub struct MarketPool {
-    pub market: Pubkey,
-    pub yes_liquidity: u64,
-    pub no_liquidity: u64,
-    pub liquidity_value: u64,
-    pub liquidity_shares: u64,
-    pub usd_collateral: u64,
-    pub total_yes_mints: u64,
-    pub total_no_mints: u64,
-    pub bump: u8,
 }
 
 impl MarketPool {
