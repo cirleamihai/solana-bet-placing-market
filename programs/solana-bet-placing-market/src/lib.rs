@@ -9,14 +9,13 @@ declare_id!("3waVbK9Pps4X1ZwS5GbwDQKmX5syrwe6guwnyN3YJfRc");
 #[program]
 pub mod solana_bet_placing_market {
     use anchor_spl::token;
-    use anchor_spl::token::spl_token::instruction::TokenInstruction::Transfer;
     use super::*;
 
     pub fn initialize_market_factory(ctx: Context<InitializeMarketFactory>) -> Result<()> {
-        let factory = &mut ctx.accounts.factory;
+        let market_factory = &mut ctx.accounts.market_factory;
 
         // Store the number of created markets, initially to 0
-        factory.created_markets = 0;
+        market_factory.created_markets = 0;
 
         Ok(())
     }
@@ -191,12 +190,14 @@ pub struct InitializeMarketFactory<'info> {
     #[account(
         init,
         seeds = [b"market_factory", authority.key().as_ref()],
+        bump,
         payer = authority,
         space = 8 + 8
     )]
-    pub factory: Account<'info, MarketFactory>,
+    pub market_factory: Account<'info, MarketFactory>,
 
     /// The account that pays for the initialization.
+    #[account(mut)]
     pub authority: Signer<'info>,
 
     /// Programs and sysvars.
@@ -208,7 +209,7 @@ pub struct InitializeMarketFactory<'info> {
 pub struct InitializeMarket<'info> {
     #[account(
         init,
-        seeds = [b"market", authority.key().as_ref(), factory.created_markets.to_le_bytes().as_ref()],
+        seeds = [b"market", authority.key().as_ref(), market_factory.created_markets.to_le_bytes().as_ref()],
         bump,
         payer = authority,
         space = 8 + Market::LEN
