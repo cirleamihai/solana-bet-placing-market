@@ -12,8 +12,18 @@ pub mod solana_bet_placing_market {
     use anchor_spl::token::spl_token::instruction::TokenInstruction::Transfer;
     use super::*;
 
+    pub fn initialize_market_factory(ctx: Context<InitializeMarketFactory>) -> Result<()> {
+        let factory = &mut ctx.accounts.factory;
+
+        // Store the number of created markets, initially to 0
+        factory.created_markets = 0;
+
+        Ok(())
+    }
+
     pub fn create_new_market(ctx: Context<InitializeMarket>) -> Result<()> {
         let market = &mut ctx.accounts.market;
+        let market_factory = &mut ctx.accounts.market_factory;
 
         // Store the USD mint and market-specific mint addresses
         // once they have been initialized by the sys
@@ -22,9 +32,13 @@ pub mod solana_bet_placing_market {
         market.no_mint = ctx.accounts.no_mint.key();
         market.vault = ctx.accounts.vault.key();
         market.authority = ctx.accounts.authority.key();
+        market.market_number = market_factory.created_markets;
         market.bump = ctx.bumps.market;
         market.outcome = None;
         market.resolved = false;
+
+        // Increase the number of created markets
+        market_factory.created_markets += 1;
 
         Ok(())
     }
@@ -71,11 +85,12 @@ pub mod solana_bet_placing_market {
                 market,
                 &ctx.accounts.token_program,
                 usd_amount,
-                &[
+                &[&[
                     b"market",
                     market.authority.as_ref(),
-                    &market.bump.to_le_bytes(),
-                ]
+                    &market.market_number.to_le_bytes(),
+                    &market.bump.to_le_bytes()
+                ]]
             )?;
 
             mint_outcome(
@@ -84,11 +99,12 @@ pub mod solana_bet_placing_market {
                 market,
                 &ctx.accounts.token_program,
                 usd_amount,
-                &[
+                &[&[
                     b"market",
                     market.authority.as_ref(),
-                    &market.bump.to_le_bytes(),
-                ]
+                    &market.market_number.to_le_bytes(),
+                    &market.bump.to_le_bytes()
+                ]]
             )?;
 
             // Once added, we should also update the pool yes mints with the new values
@@ -115,7 +131,7 @@ fn mint_outcome<'info>(
     market: &Account<'info, Market>,
     token_program: &Program<'info, Token>,
     amount: u64,
-    signer: &[&[u8]]
+    signer: &[&[&[u8]]]
 ) -> Result<()> {
     // Creating the context useful for the minting
     let cpi_context = CpiContext::new_with_signer(
@@ -125,11 +141,16 @@ fn mint_outcome<'info>(
             to: to_account.to_account_info(),
             authority: market.to_account_info(),
         },
-        &[signer]
+        signer
     );
 
     // Once created the context, then mint
     token::mint_to(cpi_context, amount)
+}
+
+#[account]
+pub struct MarketFactory {
+    pub created_markets: u64,
 }
 
 #[account]
@@ -139,6 +160,7 @@ pub struct Market {
     pub no_mint: Pubkey,
     pub vault: Pubkey,
     pub authority: Pubkey, // Who can resolve
+    pub market_number: u64,
     pub resolved: bool,
     pub outcome: Option<u8>, // 0 = No, 1 = Yes,
     pub bump: u8,
@@ -160,8 +182,25 @@ pub struct MarketPool {
 impl Market {
     // Calculate the required space. Remember: 8 bytes for the discriminator.
     // Here we have five Pubkeys (32 bytes each), one bool (1 byte), an Option<u8> (2 bytes), and one u8.
-    // Total = 32*5 + 1 + 2 + 1 = 160 + 4 = 164 bytes.
-    pub const LEN: usize = 8 + 32 * 5 + 1 + 2 + 1;
+    // Total = 32*5 + 8 + 1 + 2 + 1 = 160 + 12 = 172 bytes.
+    pub const LEN: usize = 8 + 32 * 5 + 8 + 1 + 2 + 1;
+}
+
+#[derive(Accounts)]
+pub struct InitializeMarketFactory<'info> {
+    #[account(
+        init,
+        seeds = [b"market_factory", authority.key().as_ref()],
+        payer = authority,
+        space = 8 + 8
+    )]
+    pub factory: Account<'info, MarketFactory>,
+
+    /// The account that pays for the initialization.
+    pub authority: Signer<'info>,
+
+    /// Programs and sysvars.
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -169,7 +208,7 @@ impl Market {
 pub struct InitializeMarket<'info> {
     #[account(
         init,
-        seeds = [b"market", authority.key().as_ref(), clock.unix_timestamp.to_le_bytes().as_ref()],
+        seeds = [b"market", authority.key().as_ref(), factory.created_markets.to_le_bytes().as_ref()],
         bump,
         payer = authority,
         space = 8 + Market::LEN
@@ -202,6 +241,9 @@ pub struct InitializeMarket<'info> {
 
     // USD Token (your stable token)
     pub usd_mint: Account<'info, Mint>,
+
+    /// The factory for the market.
+    pub market_factory: Account<'info, MarketFactory>,
 
     /// The vault account where the USD tokens are escrowed.
     /// Its authority is also set to the market PDA.
