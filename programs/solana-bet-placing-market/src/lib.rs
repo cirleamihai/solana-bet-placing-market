@@ -86,7 +86,7 @@ pub mod solana_bet_placing_market {
         if pool.yes_liquidity == pool.no_liquidity {
             mint_outcome(
                 &ctx.accounts.yes_mint,
-                &ctx.accounts.user_yes_account,
+                &ctx.accounts.liquidity_yes_tokens_account,
                 market,
                 &ctx.accounts.token_program,
                 usd_amount,
@@ -100,7 +100,7 @@ pub mod solana_bet_placing_market {
 
             mint_outcome(
                 &ctx.accounts.no_mint,
-                &ctx.accounts.user_no_account,
+                &ctx.accounts.liquidity_no_tokens_account,
                 market,
                 &ctx.accounts.token_program,
                 usd_amount,
@@ -121,6 +121,17 @@ pub mod solana_bet_placing_market {
             // And also update the liquidity values & shares
             pool.liquidity_value += usd_amount;
             pool.liquidity_shares += usd_amount;
+
+            emit!(LiquidityAddedEvent {
+                market: market.key(),
+                user: ctx.accounts.user.key(),
+                amount: usd_amount,
+                usd_added_to_pool: usd_amount,
+                yes_added_to_pool: usd_amount,
+                no_added_to_pool: usd_amount,
+                yes_minted: usd_amount,
+                no_minted: usd_amount,
+            })
         }
 
         // 2. Updating the pool with the new values
@@ -186,11 +197,17 @@ pub struct MarketPool {
     pub bump: u8,
 }
 
-// #[event]
-// pub struct LiquidityAddedEvent {
-//     pub market: Pubkey,
-//
-// }
+#[event]
+pub struct LiquidityAddedEvent {
+    pub market: Pubkey,
+    pub user: Pubkey,
+    pub amount: u64,
+    pub usd_added_to_pool: u64,
+    pub yes_added_to_pool: u64,
+    pub no_added_to_pool: u64,
+    pub yes_minted: u64,
+    pub no_minted: u64,
+}
 
 impl Market {
     // Calculate the required space. Remember: 8 bytes for the discriminator.
@@ -365,6 +382,18 @@ pub struct AddLiquidity<'info> {
 
     #[account(mut)]
     pub user_no_account: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        constraint = pool.liquidity_yes_tokens_account == liquidity_yes_tokens_account.key()
+    )]
+    pub liquidity_yes_tokens_account: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        constraint = pool.liquidity_no_tokens_account == liquidity_no_tokens_account.key()
+    )]
+    pub liquidity_no_tokens_account: Account<'info, TokenAccount>,
 
     #[account(mut)]
     pub user: Signer<'info>,
