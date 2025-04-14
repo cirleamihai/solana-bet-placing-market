@@ -1,15 +1,15 @@
+use anchor_lang::error_code;
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token::{Mint, Token, TokenAccount};
-use anchor_lang::error_code;
 use anchor_spl::token;
+use anchor_spl::token::{Mint, Token, TokenAccount};
 
 declare_id!("3waVbK9Pps4X1ZwS5GbwDQKmX5syrwe6guwnyN3YJfRc");
 
 #[program]
 pub mod solana_bet_placing_market {
-    use anchor_spl::token;
     use super::*;
+    use anchor_spl::token;
 
     pub fn initialize_market_factory(ctx: Context<InitializeMarketFactory>) -> Result<()> {
         let market_factory = &mut ctx.accounts.market_factory;
@@ -52,7 +52,13 @@ pub mod solana_bet_placing_market {
         pool.usd_collateral = 0;
         pool.total_yes_mints = 0;
         pool.total_no_mints = 0;
+        pool.liquidity_value = 0;
+        pool.liquidity_shares = 0;
         pool.bump = ctx.bumps.pool;
+
+        // Store the liquidity pool token accounts
+        pool.liquidity_yes_tokens_account = ctx.accounts.liquidity_yes_tokens_account.key();
+        pool.liquidity_no_tokens_account = ctx.accounts.liquidity_no_tokens_account.key();
 
         Ok(())
     }
@@ -61,7 +67,7 @@ pub mod solana_bet_placing_market {
         require!(usd_amount > 0, MarketError::Zero);
 
         let pool = &mut ctx.accounts.pool;
-        let market = & ctx.accounts.market;
+        let market = &ctx.accounts.market;
 
         // Transfer the usd to the market vault
         let cpi_accounts = token::Transfer {
@@ -88,8 +94,8 @@ pub mod solana_bet_placing_market {
                     b"market",
                     market.authority.as_ref(),
                     &market.market_number.to_le_bytes(),
-                    &market.bump.to_le_bytes()
-                ]]
+                    &market.bump.to_le_bytes(),
+                ]],
             )?;
 
             mint_outcome(
@@ -102,8 +108,8 @@ pub mod solana_bet_placing_market {
                     b"market",
                     market.authority.as_ref(),
                     &market.market_number.to_le_bytes(),
-                    &market.bump.to_le_bytes()
-                ]]
+                    &market.bump.to_le_bytes(),
+                ]],
             )?;
 
             // Once added, we should also update the pool yes mints with the new values
@@ -130,7 +136,7 @@ fn mint_outcome<'info>(
     market: &Account<'info, Market>,
     token_program: &Program<'info, Token>,
     amount: u64,
-    signer: &[&[&[u8]]]
+    signer: &[&[&[u8]]],
 ) -> Result<()> {
     // Creating the context useful for the minting
     let cpi_context = CpiContext::new_with_signer(
@@ -140,7 +146,7 @@ fn mint_outcome<'info>(
             to: to_account.to_account_info(),
             authority: market.to_account_info(),
         },
-        signer
+        signer,
     );
 
     // Once created the context, then mint
@@ -168,6 +174,8 @@ pub struct Market {
 #[account]
 pub struct MarketPool {
     pub market: Pubkey,
+    pub liquidity_yes_tokens_account: Pubkey,
+    pub liquidity_no_tokens_account: Pubkey,
     pub yes_liquidity: u64,
     pub no_liquidity: u64,
     pub liquidity_value: u64,
@@ -178,11 +186,24 @@ pub struct MarketPool {
     pub bump: u8,
 }
 
+// #[event]
+// pub struct LiquidityAddedEvent {
+//     pub market: Pubkey,
+//
+// }
+
 impl Market {
     // Calculate the required space. Remember: 8 bytes for the discriminator.
     // Here we have five Pubkeys (32 bytes each), one bool (1 byte), an Option<u8> (2 bytes), and one u8.
     // Total = 32*5 + 8 + 1 + 2 + 1 = 160 + 12 = 172 bytes.
     pub const LEN: usize = 8 + 32 * 5 + 8 + 1 + 2 + 1;
+}
+
+impl MarketPool {
+    // Calculate the required space. Remember: 8 bytes for the discriminator.
+    // Here we have three Pubkey (32 bytes), seven u64 (8 bytes each), and one u8.
+    // Total = 32 * 3 + 8*7 + 1 = 96 + 40 + 1 = 137 bytes.
+    pub const LEN: usize = 8 + 32 * 3 + 8 * 7 + 1;
 }
 
 #[derive(Accounts)]
@@ -271,13 +292,6 @@ pub struct InitializeMarket<'info> {
     pub clock: Sysvar<'info, Clock>,
 }
 
-impl MarketPool {
-    // Calculate the required space. Remember: 8 bytes for the discriminator.
-    // Here we have one Pubkey (32 bytes), seven u64 (8 bytes each), and one u8.
-    // Total = 32 + 8*7 + 1 = 32 + 40 + 1 = 73 bytes.
-    pub const LEN: usize = 8 + 32 + 8 * 7 + 1;
-}
-
 #[derive(Accounts)]
 #[instruction()]
 pub struct InitializePool<'info> {
@@ -289,6 +303,26 @@ pub struct InitializePool<'info> {
         space = 8 + MarketPool::LEN
     )]
     pub pool: Account<'info, MarketPool>,
+
+    /// The liquidity pool yes tokens account.
+    #[account(
+        init,
+        seeds = [b"yes_liquidity_pool", market.key().as_ref()],
+        bump,
+        payer = authority,
+        space = 8 + MarketPool::LEN
+    )]
+    pub liquidity_yes_tokens_account: Account<'info, TokenAccount>,
+
+    /// The liquidity pool no tokens account.
+    #[account(
+        init,
+        seeds = [b"no_liquidity_pool", market.key().as_ref()],
+        bump,
+        payer = authority,
+        space = 8 + MarketPool::LEN
+    )]
+    pub liquidity_no_tokens_account: Account<'info, TokenAccount>,
 
     /// The market account.
     #[account(mut)]
@@ -338,7 +372,6 @@ pub struct AddLiquidity<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-
 #[error_code]
 pub enum MarketError {
     #[msg("The amount must be greater than zero.")]
@@ -350,4 +383,3 @@ pub enum MarketError {
     #[msg("The market is not initialized.")]
     MarketNotInitialized,
 }
-
