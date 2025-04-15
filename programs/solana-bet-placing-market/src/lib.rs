@@ -79,8 +79,6 @@ pub mod solana_bet_placing_market {
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
         token::transfer(cpi_ctx, usd_amount)?;
 
-        // Now we are left with
-
         // 1. Minting the equal number of YES and NO tokens in case
         // the pool has equal chances for both outcomes.
         if pool.yes_liquidity == pool.no_liquidity {
@@ -133,6 +131,37 @@ pub mod solana_bet_placing_market {
                 yes_minted: usd_amount,
                 no_minted: usd_amount,
             })
+        } else {
+            let total_tokens = pool.yes_liquidity + pool.no_liquidity;
+            let yes_token_price = pool.yes_liquidity / total_tokens;
+            let no_token_price = pool.no_liquidity / total_tokens;
+
+            // Otherwise, we have to decide how to share the liquidity
+            if pool.no_liquidity > pool.yes_liquidity {
+                // if there is more liquidity in the NO pool, it means it is less likely to win
+                // therefore, we are going to give back to the user the more probable outcome
+                let new_no_minted_tokens = pool.no_liquidity + usd_amount;
+                let new_yes_minted_tokens =
+                    (no_token_price * new_no_minted_tokens) / yes_token_price;
+
+                let liquidity_squared = (new_no_minted_tokens * new_yes_minted_tokens) as u128;
+                let new_liquidity_value = sqrt_u128(liquidity_squared) as u64;
+                let users_belonging_yes_tokens = pool.yes_liquidity - new_yes_minted_tokens;
+
+                mint_outcome(
+                    &ctx.accounts.no_mint,
+                    &ctx.accounts.liquidity_no_tokens_account,
+                    market,
+                    &ctx.accounts.token_program,
+                    usd_amount,
+                    &[&[
+                        b"market",
+                        market.authority.as_ref(),
+                        &market.market_number.to_le_bytes(),
+                        &market.bump.to_le_bytes(),
+                    ]],
+                )?;
+            }
         }
 
         // 2. Updating the pool with the new values
@@ -142,7 +171,7 @@ pub mod solana_bet_placing_market {
     }
 }
 
-fn mint_outcome<'info>(
+pub fn mint_outcome<'info>(
     mint: &Account<'info, Mint>,
     to_account: &Account<'info, TokenAccount>,
     market: &Account<'info, Market>,
@@ -163,6 +192,23 @@ fn mint_outcome<'info>(
 
     // Once created the context, then mint
     token::mint_to(cpi_context, amount)
+}
+
+// Babylonian method (Heron's method) for unsigned integers
+pub fn sqrt_u128(input: u128) -> u128 {
+    if input == 0 {
+        return 0;
+    }
+
+    let mut guess = (input + 1) / 2;
+    let mut result = input;
+
+    while guess < result {
+        result = guess;
+        guess = (input / guess + guess) / 2;
+    }
+
+    result
 }
 
 #[account]
@@ -213,15 +259,11 @@ pub struct LiquidityAddedEvent {
 
 impl Market {
     // Calculate the required space. Remember: 8 bytes for the discriminator.
-    // Here we have five Pubkeys (32 bytes each), one bool (1 byte), an Option<u8> (2 bytes), and one u8.
-    // Total = 32*5 + 8 + 1 + 2 + 1 = 160 + 12 = 172 bytes.
     pub const LEN: usize = 8 + 32 * 5 + 8 + 1 + 2 + 1;
 }
 
 impl MarketPool {
     // Calculate the required space. Remember: 8 bytes for the discriminator.
-    // Here we have three Pubkey (32 bytes), seven u64 (8 bytes each), and one u8.
-    // Total = 32 * 3 + 8*7 + 1 = 96 + 40 + 1 = 137 bytes.
     pub const LEN: usize = 8 + 32 * 3 + 8 * 7 + 1;
 }
 
