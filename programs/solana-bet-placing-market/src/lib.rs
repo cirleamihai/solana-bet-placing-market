@@ -83,6 +83,7 @@ pub mod solana_bet_placing_market {
         // 1. Minting the equal number of YES and NO tokens in case
         // the pool has equal chances for both outcomes.
         if pool.yes_liquidity == pool.no_liquidity {
+            // mint first the YES tokens
             mint_outcome(
                 &ctx.accounts.yes_mint,
                 &ctx.accounts.liquidity_yes_tokens_account,
@@ -97,6 +98,7 @@ pub mod solana_bet_placing_market {
                 ]],
             )?;
 
+            // mint the same number of NO tokens
             mint_outcome(
                 &ctx.accounts.no_mint,
                 &ctx.accounts.liquidity_no_tokens_account,
@@ -109,6 +111,21 @@ pub mod solana_bet_placing_market {
                     &market.market_number.to_le_bytes(),
                     &market.bump.to_le_bytes(),
                 ]],
+            )?;
+
+            // Now we also mint the lp shares
+            mint_outcome(
+                &ctx.accounts.lp_share_mint,
+                &ctx.accounts.user_lp_share_account,
+                market,
+                &ctx.accounts.token_program,
+                usd_amount,
+                &[&[
+                    b"market",
+                    market.authority.as_ref(),
+                    &market.market_number.to_le_bytes(),
+                    &market.bump.to_le_bytes(),
+                ]]
             )?;
 
             // Once added, we should also update the pool yes mints with the new values
@@ -435,6 +452,9 @@ pub struct AddLiquidity<'info> {
 
     #[account(mut)]
     pub no_mint: Account<'info, Mint>,
+
+    #[account(mut)]
+    pub lp_share_mint: Account<'info, Mint>,
 
     #[account(mut)]
     pub user_usd_account: Account<'info, TokenAccount>,
