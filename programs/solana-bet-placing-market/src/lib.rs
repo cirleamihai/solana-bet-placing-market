@@ -146,6 +146,8 @@ pub mod solana_bet_placing_market {
                 usd_added_to_pool: usd_amount,
                 yes_added_to_pool: usd_amount,
                 no_added_to_pool: usd_amount,
+                yes_given_to_user: 0,
+                no_given_to_user: 0,
                 yes_minted: usd_amount,
                 no_minted: usd_amount,
             })
@@ -237,6 +239,21 @@ pub mod solana_bet_placing_market {
                     ]],
                 )?;
 
+                // Send the event
+                emit!(LiquidityAddedEvent {
+                    market: market.key(),
+                    user: ctx.accounts.user.key(),
+                    amount: usd_amount,
+                    liquidity_shares_gained: user_belonging_liquidity_shares,
+                    usd_added_to_pool: user_belonging_liquidity_shares,
+                    yes_added_to_pool: yes_lp_minted,
+                    no_added_to_pool: usd_amount,
+                    yes_given_to_user: user_belonging_yes_tokens,
+                    no_given_to_user: 0,
+                    yes_minted: usd_amount,
+                    no_minted: usd_amount,
+                });
+
                 // Now we update the pool
                 pool.yes_liquidity += yes_lp_minted;
                 pool.no_liquidity += usd_amount;
@@ -244,8 +261,8 @@ pub mod solana_bet_placing_market {
                 pool.total_no_mints += usd_amount;
 
                 // The shares for now don't differ from the value
-                pool.liquidity_value += user_belonging_liquidity_shares;
-                pool.liquidity_shares += user_belonging_liquidity_shares;
+                pool.liquidity_value = new_liquidity_value;
+                pool.liquidity_shares = new_liquidity_value;
             } else {
                 // if there is more liquidity in the YES pool, it means it is less likely to win
                 // therefore, we are going to give back to the user the more probable outcome: NO
@@ -324,6 +341,21 @@ pub mod solana_bet_placing_market {
                     ]],
                 )?;
 
+                // Send the event
+                emit!(LiquidityAddedEvent {
+                    market: market.key(),
+                    user: ctx.accounts.user.key(),
+                    amount: usd_amount,
+                    liquidity_shares_gained: user_belonging_liquidity_shares,
+                    usd_added_to_pool: user_belonging_liquidity_shares,
+                    yes_added_to_pool: usd_amount,
+                    no_added_to_pool: no_lp_minted,
+                    yes_given_to_user: 0,
+                    no_given_to_user: user_belonging_no_tokens,
+                    yes_minted: usd_amount,
+                    no_minted: usd_amount,
+                });
+
                 // Now we update the pool
                 pool.yes_liquidity += usd_amount;
                 pool.no_liquidity += no_lp_minted;
@@ -331,8 +363,8 @@ pub mod solana_bet_placing_market {
                 pool.total_no_mints += usd_amount;
 
                 // The shares for now don't differ from the value
-                pool.liquidity_value += user_belonging_liquidity_shares;
-                pool.liquidity_shares += user_belonging_liquidity_shares;
+                pool.liquidity_value = new_liquidity_value;
+                pool.liquidity_shares = new_liquidity_value;
             }
         }
 
@@ -426,6 +458,8 @@ pub struct LiquidityAddedEvent {
     pub usd_added_to_pool: u64,
     pub yes_added_to_pool: u64,
     pub no_added_to_pool: u64,
+    pub yes_given_to_user: u64,
+    pub no_given_to_user: u64,
     pub yes_minted: u64,
     pub no_minted: u64,
 }
