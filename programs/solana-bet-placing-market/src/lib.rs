@@ -72,9 +72,9 @@ pub mod solana_bet_placing_market {
 
         // Transfer the usd to the market vault
         let cpi_accounts = token::Transfer {
-            from: ctx.accounts.user_usd_account.to_account_info().clone(),
-            to: ctx.accounts.vault.to_account_info().clone(),
-            authority: ctx.accounts.user.to_account_info().clone(),
+            from: ctx.accounts.user_usd_account.to_account_info(),
+            to: ctx.accounts.vault.to_account_info(),
+            authority: ctx.accounts.user.to_account_info(),
         };
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
