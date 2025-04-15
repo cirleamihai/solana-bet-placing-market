@@ -29,6 +29,7 @@ pub mod solana_bet_placing_market {
         market.usd_mint = ctx.accounts.usd_mint.key();
         market.yes_mint = ctx.accounts.yes_mint.key();
         market.no_mint = ctx.accounts.no_mint.key();
+        market.lp_share_mint = ctx.accounts.lp_share_mint.key();
         market.vault = ctx.accounts.vault.key();
         market.authority = ctx.accounts.authority.key();
         market.market_number = market_factory.created_markets;
@@ -146,8 +147,10 @@ pub mod solana_bet_placing_market {
 
                 let liquidity_squared = (new_no_minted_tokens * new_yes_minted_tokens) as u128;
                 let new_liquidity_value = sqrt_u128(liquidity_squared) as u64;
-                let users_belonging_yes_tokens = pool.yes_liquidity - new_yes_minted_tokens;
+                let user_belonging_yes_tokens = pool.yes_liquidity - new_yes_minted_tokens;
+                let user_belonging_liquidity_shares = new_liquidity_value - pool.liquidity_shares;
 
+                // Now, we first send the no mints to the liquidity pool
                 mint_outcome(
                     &ctx.accounts.no_mint,
                     &ctx.accounts.liquidity_no_tokens_account,
@@ -161,6 +164,8 @@ pub mod solana_bet_placing_market {
                         &market.bump.to_le_bytes(),
                     ]],
                 )?;
+
+
             }
         }
 
@@ -221,6 +226,7 @@ pub struct Market {
     pub usd_mint: Pubkey,
     pub yes_mint: Pubkey,
     pub no_mint: Pubkey,
+    pub lp_share_mint: Pubkey, // lp mint that is used to represent total shares on a given pool
     pub vault: Pubkey,
     pub authority: Pubkey, // Who can resolve
     pub market_number: u64,
@@ -259,7 +265,7 @@ pub struct LiquidityAddedEvent {
 
 impl Market {
     // Calculate the required space. Remember: 8 bytes for the discriminator.
-    pub const LEN: usize = 8 + 32 * 5 + 8 + 1 + 2 + 1;
+    pub const LEN: usize = 8 + 32 * 6 + 8 + 1 + 2 + 1;
 }
 
 impl MarketPool {
@@ -321,6 +327,18 @@ pub struct InitializeMarket<'info> {
         mint::freeze_authority = market,
     )]
     pub no_mint: Account<'info, Mint>,
+
+    // LP Share Mint
+    #[account(
+        init,
+        seeds = [b"lp_share_mint", market.key().as_ref()],
+        bump,
+        payer = authority,
+        mint::decimals = 6,
+        mint::authority = market,
+        mint::freeze_authority = market,
+    )]
+    pub lp_share_mint: Account<'info, Mint>,
 
     // USD Token (your stable token)
     pub usd_mint: Account<'info, Mint>,
@@ -426,6 +444,9 @@ pub struct AddLiquidity<'info> {
 
     #[account(mut)]
     pub user_no_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub user_lp_share_account: Account<'info, TokenAccount>,
 
     #[account(
         mut,
