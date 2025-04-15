@@ -125,7 +125,7 @@ pub mod solana_bet_placing_market {
                     market.authority.as_ref(),
                     &market.market_number.to_le_bytes(),
                     &market.bump.to_le_bytes(),
-                ]]
+                ]],
             )?;
 
             // Once added, we should also update the pool yes mints with the new values
@@ -158,16 +158,23 @@ pub mod solana_bet_placing_market {
             if pool.no_liquidity > pool.yes_liquidity {
                 // if there is more liquidity in the NO pool, it means it is less likely to win
                 // therefore, we are going to give back to the user the more probable outcome
+                // Total minted tokens
                 let new_no_minted_tokens = pool.no_liquidity + usd_amount;
-                let new_yes_minted_tokens =
-                    (no_token_price * new_no_minted_tokens) / yes_token_price;
+                let new_yes_minted_tokens = pool.yes_liquidity + usd_amount;
 
-                let liquidity_squared = (new_no_minted_tokens * new_yes_minted_tokens) as u128;
+                // Pool minted tokens
+                let new_lp_no_minted_tokens = new_no_minted_tokens; // It is the same being the less probable chance
+                let new_lp_yes_minted_tokens =
+                    (no_token_price * new_no_minted_tokens) / yes_token_price;
+                let liquidity_squared =
+                    (new_lp_no_minted_tokens * new_lp_yes_minted_tokens) as u128;
                 let new_liquidity_value = sqrt_u128(liquidity_squared) as u64;
-                let user_belonging_yes_tokens = pool.yes_liquidity - new_yes_minted_tokens;
+
+                // Now, we calculate what we have to give to the user
+                let user_belonging_yes_tokens = new_yes_minted_tokens - new_lp_yes_minted_tokens;
                 let user_belonging_liquidity_shares = new_liquidity_value - pool.liquidity_shares;
 
-                // Now, we first send the no mints to the liquidity pool
+                // Now, we first mint the NO tokens in the liquidity pool
                 mint_outcome(
                     &ctx.accounts.no_mint,
                     &ctx.accounts.liquidity_no_tokens_account,
@@ -182,7 +189,62 @@ pub mod solana_bet_placing_market {
                     ]],
                 )?;
 
+                // Then mint the YES tokens to the liquidity pool
+                let yes_lp_minted = new_lp_yes_minted_tokens - pool.yes_liquidity;
+                mint_outcome(
+                    &ctx.accounts.yes_mint,
+                    &ctx.accounts.liquidity_yes_tokens_account,
+                    market,
+                    &ctx.accounts.token_program,
+                    yes_lp_minted,
+                    &[&[
+                        b"market",
+                        market.authority.as_ref(),
+                        &market.market_number.to_le_bytes(),
+                        &market.bump.to_le_bytes(),
+                    ]],
+                )?;
 
+                // Then mint what belongs to the user
+                // 1. The remaining YES tokens
+                mint_outcome(
+                    &ctx.accounts.yes_mint,
+                    &ctx.accounts.user_yes_account,
+                    market,
+                    &ctx.accounts.token_program,
+                    user_belonging_yes_tokens,
+                    &[&[
+                        b"market",
+                        market.authority.as_ref(),
+                        &market.market_number.to_le_bytes(),
+                        &market.bump.to_le_bytes(),
+                    ]],
+                )?;
+
+                // 2. The LP shares
+                mint_outcome(
+                    &ctx.accounts.lp_share_mint,
+                    &ctx.accounts.user_lp_share_account,
+                    market,
+                    &ctx.accounts.token_program,
+                    user_belonging_liquidity_shares,
+                    &[&[
+                        b"market",
+                        market.authority.as_ref(),
+                        &market.market_number.to_le_bytes(),
+                        &market.bump.to_le_bytes(),
+                    ]],
+                )?;
+
+                // Now we update the pool
+                pool.yes_liquidity += yes_lp_minted;
+                pool.no_liquidity += usd_amount;
+                pool.total_yes_mints += usd_amount;
+                pool.total_no_mints += usd_amount;
+
+                // The shares for now don't differ from the value
+                pool.liquidity_value += user_belonging_liquidity_shares;
+                pool.liquidity_shares += user_belonging_liquidity_shares;
             }
         }
 
