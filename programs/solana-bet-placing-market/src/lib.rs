@@ -119,7 +119,11 @@ pub mod solana_bet_placing_market {
         Ok(())
     }
 
-    pub fn purchase_outcome_shares(ctx: Context<PurchaseOutcomeShares>, usd_amount: u64) -> Result<()> {
+    pub fn purchase_outcome_shares(
+        ctx: Context<PurchaseOutcomeShares>,
+        usd_amount: u64,
+        purchased_outcome_mint_pubkey: Pubkey
+    ) -> Result<()> {
         // First and foremost, we need the amount to be bigger than 0
         require!(usd_amount > 0, MarketError::Zero);
 
@@ -137,6 +141,20 @@ pub mod solana_bet_placing_market {
 
             token::transfer(cpi_ctx, usd_amount)?;
         }
+
+        // Now we figure out whether the user wants
+        // a YES or a NO token
+        if purchased_outcome_mint_pubkey == ctx.accounts.yes_mint.key() {
+            // YES token
+
+        } else if purchased_outcome_mint_pubkey == ctx.accounts.no_mint.key() {
+            // NO token
+
+        } else {
+            return Err(MarketError::MintNotAllowed.into());
+        }
+
+
 
         Ok(())
     }
@@ -775,7 +793,10 @@ pub struct PurchaseOutcomeShares<'info> {
     pub vault: Account<'info, TokenAccount>,
 
     #[account(mut)]
-    pub purchased_outcome_mint: Account<'info, Mint>,
+    pub yes_mint: Account<'info, Mint>,
+
+    #[account(mut)]
+    pub no_mint: Account<'info, Mint>,
 
     #[account(mut)]
     pub user_usd_account: Account<'info, TokenAccount>,
@@ -805,6 +826,10 @@ pub struct PurchaseOutcomeShares<'info> {
 pub enum MarketError {
     #[msg("The amount must be greater than zero.")]
     Zero,
+    #[msg("The compared mints do no correspond.")]
+    UnmatchedMints,
+    #[msg("The given mint is not allowed in this transaction.")]
+    MintNotAllowed,
     #[msg("The market is already resolved.")]
     MarketResolved,
     #[msg("The market is not resolved yet.")]
