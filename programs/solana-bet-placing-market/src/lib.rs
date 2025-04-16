@@ -119,9 +119,24 @@ pub mod solana_bet_placing_market {
         Ok(())
     }
 
-    pub fn purchase_outcome_shares(ctx: Context<PurchaseOutcomeShares>, usd_amount) -> Result<()> {
+    pub fn purchase_outcome_shares(ctx: Context<PurchaseOutcomeShares>, usd_amount: u64) -> Result<()> {
         // First and foremost, we need the amount to be bigger than 0
         require!(usd_amount > 0, MarketError::Zero);
+
+        // Transfer the usd to the market vault
+        {
+            let cpi_accounts = token::Transfer {
+                from: ctx.accounts.user_usd_account.to_account_info(),
+                to: ctx.accounts.vault.to_account_info(),
+                authority: ctx.accounts.user.to_account_info(),
+            };
+            let cpi_ctx = CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                cpi_accounts
+            );
+
+            token::transfer(cpi_ctx, usd_amount)?;
+        }
 
         Ok(())
     }
@@ -755,6 +770,9 @@ pub struct PurchaseOutcomeShares<'info> {
 
     #[account(mut)]
     pub pool: Account<'info, MarketPool>,
+
+    #[account(mut)]
+    pub vault: Account<'info, TokenAccount>,
 
     #[account(mut)]
     pub purchased_outcome_mint: Account<'info, Mint>,
