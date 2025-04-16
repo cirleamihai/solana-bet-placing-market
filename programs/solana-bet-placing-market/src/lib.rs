@@ -72,14 +72,16 @@ pub mod solana_bet_placing_market {
         // let market = &ctx.accounts.market;
 
         // Transfer the usd to the market vault
-        let cpi_accounts = token::Transfer {
-            from: ctx.accounts.user_usd_account.to_account_info(),
-            to: ctx.accounts.vault.to_account_info(),
-            authority: ctx.accounts.user.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, usd_amount)?;
+        {
+            let cpi_accounts = token::Transfer {
+                from: ctx.accounts.user_usd_account.to_account_info(),
+                to: ctx.accounts.vault.to_account_info(),
+                authority: ctx.accounts.user.to_account_info(),
+            };
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+            token::transfer(cpi_ctx, usd_amount)?;
+        }
 
         // 1. Minting the equal number of YES and NO tokens in case
         // the pool has equal chances for both outcomes.
@@ -682,14 +684,11 @@ pub struct AddLiquidity<'info> {
     #[account(mut)]
     pub pool: Account<'info, MarketPool>,
 
-    #[account(mut, has_one = usd_mint, has_one = vault)]
+    #[account(mut, has_one=vault)]
     pub market: Account<'info, Market>,
 
     #[account(mut)]
     pub vault: Account<'info, TokenAccount>,
-
-    #[account(mut)]
-    pub usd_mint: Account<'info, Mint>,
 
     #[account(mut)]
     pub yes_mint: Account<'info, Mint>,
