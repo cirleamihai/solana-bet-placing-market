@@ -118,6 +118,13 @@ pub mod solana_bet_placing_market {
 
         Ok(())
     }
+
+    pub fn purchase_outcome_shares(ctx: Context<PurchaseOutcomeShares>, usd_amount) -> Result<()> {
+        // First and foremost, we need the amount to be bigger than 0
+        require!(usd_amount > 0, MarketError::Zero);
+
+        Ok(())
+    }
 }
 
 #[inline(never)]
@@ -528,6 +535,18 @@ pub struct LiquidityAddedEvent {
     pub no_minted: u64,
 }
 
+#[event]
+pub struct PurchasedOutcomeSharesEvent {
+    pub market: Pubkey,
+    pub user: Pubkey,
+    pub amount: u64,
+    pub yes_purchased: u64,
+    pub no_purchased: u64,
+    pub pool_remaining_yes_tokens: u64,
+    pub pool_remaining_no_tokens: u64,
+    pub liquidity_pool_value: u64
+}
+
 impl Market {
     // Calculate the required space. Remember: 8 bytes for the discriminator.
     pub const LEN: usize = 8 + 32 * 6 + 8 + 1 + 2 + 1;
@@ -710,6 +729,41 @@ pub struct AddLiquidity<'info> {
 
     #[account(mut)]
     pub user_lp_share_account: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        constraint = pool.liquidity_yes_tokens_account == liquidity_yes_tokens_account.key()
+    )]
+    pub liquidity_yes_tokens_account: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        constraint = pool.liquidity_no_tokens_account == liquidity_no_tokens_account.key()
+    )]
+    pub liquidity_no_tokens_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct PurchaseOutcomeShares<'info> {
+    #[account(mut)]
+    pub market: Account<'info, Market>,
+
+    #[account(mut)]
+    pub pool: Account<'info, MarketPool>,
+
+    #[account(mut)]
+    pub purchased_outcome_mint: Account<'info, Mint>,
+
+    #[account(mut)]
+    pub user_usd_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub user_outcome_mint_account: Account<'info, TokenAccount>,
 
     #[account(
         mut,
