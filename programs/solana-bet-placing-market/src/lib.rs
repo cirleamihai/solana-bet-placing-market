@@ -148,12 +148,14 @@ pub mod solana_bet_placing_market {
             mut highest_outcome,
             liquidity_outcome_token_account,
             user_outcome_token_account,
+            lowest_outcome_mint
         ) = if ctx.accounts.pool.yes_liquidity > ctx.accounts.pool.no_liquidity {
             (
                 ctx.accounts.pool.no_liquidity,
                 ctx.accounts.pool.yes_liquidity,
                 &ctx.accounts.liquidity_no_tokens_account,
                 &ctx.accounts.user_no_account,
+                &ctx.accounts.no_mint
             )
         } else {
             (
@@ -161,6 +163,7 @@ pub mod solana_bet_placing_market {
                 ctx.accounts.pool.no_liquidity,
                 &ctx.accounts.liquidity_yes_tokens_account,
                 &ctx.accounts.user_yes_account,
+                &ctx.accounts.yes_mint
             )
         };
 
@@ -255,10 +258,22 @@ pub mod solana_bet_placing_market {
             ctx.accounts.pool.yes_liquidity = remaining_lowest_outcome;
         }
 
-        // And we also modify the new liquidity value
+        // And we also modify the new liquidity value to be the root value of the multiplication
         let liquidity_value_squared =
             ctx.accounts.pool.yes_liquidity as u128 * ctx.accounts.pool.no_liquidity as u128;
         ctx.accounts.pool.liquidity_value = sqrt_u128(liquidity_value_squared) as u64;
+
+        // Now we are emitting the event
+        emit!(LiquidityRemovedEvent{
+            market: ctx.accounts.market.key(),
+            user: ctx.accounts.user.key(),
+            burnt_lp_shares: shares,
+            equivalent_usd: liquidity_shares_value,
+            received_lowest_outcome_tokens: user_belonging_lowest_outcome,
+            received_lowest_outcome_mint: lowest_outcome_mint.key(),
+            remaining_yes_tokens: ctx.accounts.pool.yes_liquidity,
+            remaining_no_tokens: ctx.accounts.pool.no_liquidity,
+        });
 
         Ok(())
     }
@@ -837,6 +852,18 @@ pub struct LiquidityAddedEvent {
     pub no_given_to_user: u64,
     pub yes_minted: u64,
     pub no_minted: u64,
+}
+
+#[event]
+pub struct LiquidityRemovedEvent {
+    pub market: Pubkey,
+    pub user: Pubkey,
+    pub burnt_lp_shares: u64,
+    pub equivalent_usd: u64,
+    pub received_lowest_outcome_tokens: u64,
+    pub received_lowest_outcome_mint: Pubkey,
+    pub remaining_yes_tokens: u64,
+    pub remaining_no_tokens: u64,
 }
 
 #[event]
