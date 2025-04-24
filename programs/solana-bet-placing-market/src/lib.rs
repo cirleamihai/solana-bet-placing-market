@@ -10,7 +10,6 @@ declare_id!("3waVbK9Pps4X1ZwS5GbwDQKmX5syrwe6guwnyN3YJfRc");
 pub mod solana_bet_placing_market {
     use super::*;
     use anchor_spl::token;
-    use std::cmp::min;
 
     pub fn initialize_market_factory(ctx: Context<InitializeMarketFactory>) -> Result<()> {
         let market_factory = &mut ctx.accounts.market_factory;
@@ -188,7 +187,7 @@ pub mod solana_bet_placing_market {
             ]],
         )?;
 
-        // Burn the yes tokens that are not backed anymore
+        // Burn the yes tokens that are not backed by collateral anymore
         burn_mint_tokens(
             &ctx.accounts.yes_mint,
             &ctx.accounts.liquidity_yes_tokens_account,
@@ -203,7 +202,7 @@ pub mod solana_bet_placing_market {
             ]],
         )?;
 
-        // Burn the no tokens that are not backed anymore
+        // Burn the no tokens that are not backed by collateral anymore
         burn_mint_tokens(
             &ctx.accounts.no_mint,
             &ctx.accounts.liquidity_no_tokens_account,
@@ -255,6 +254,11 @@ pub mod solana_bet_placing_market {
         } else {
             ctx.accounts.pool.yes_liquidity = remaining_lowest_outcome;
         }
+
+        // And we also modify the new liquidity value
+        let liquidity_value_squared =
+            ctx.accounts.pool.yes_liquidity as u128 * ctx.accounts.pool.no_liquidity as u128;
+        ctx.accounts.pool.liquidity_value = sqrt_u128(liquidity_value_squared) as u64;
 
         Ok(())
     }
