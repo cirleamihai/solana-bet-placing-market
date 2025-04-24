@@ -144,13 +144,117 @@ pub mod solana_bet_placing_market {
             return Err(MarketError::MarketNotInitialized.into());
         }
         // Then we are going to calculate what share is the least probable outcome
-        let lowest_outcome = min(
-            ctx.accounts.pool.yes_liquidity,
-            ctx.accounts.pool.no_liquidity,
-        );
+        let (
+            mut lowest_outcome,
+            mut highest_outcome,
+            liquidity_outcome_token_account,
+            user_outcome_token_account,
+        ) = if ctx.accounts.pool.yes_liquidity > ctx.accounts.pool.no_liquidity {
+            (
+                ctx.accounts.pool.no_liquidity,
+                ctx.accounts.pool.yes_liquidity,
+                &ctx.accounts.liquidity_no_tokens_account,
+                &ctx.accounts.user_no_account,
+            )
+        } else {
+            (
+                ctx.accounts.pool.yes_liquidity,
+                ctx.accounts.pool.no_liquidity,
+                &ctx.accounts.liquidity_yes_tokens_account,
+                &ctx.accounts.user_yes_account,
+            )
+        };
+
+        // Compute the price aswell
+        let lowest_price = highest_outcome / (lowest_outcome + highest_outcome);
+        let highest_price = lowest_outcome / (lowest_outcome + highest_outcome);
+
         let liquidity_shares_value = (ctx.accounts.pool.liquidity_value as u128
             / (lowest_outcome as u128 * shares as u128))
             as u64;
+
+        // We are transferring OUT from the vault, the shares value
+        transfer_outcome(
+            &ctx.accounts.vault,
+            &ctx.accounts.user_usd_account,
+            &ctx.accounts.market,
+            &ctx.accounts.token_program,
+            liquidity_shares_value,
+            &[&[
+                b"market",
+                ctx.accounts.market.authority.as_ref(),
+                &ctx.accounts.market.market_number.to_le_bytes(),
+                &ctx.accounts.market.bump.to_le_bytes(),
+            ]],
+        )?;
+
+        // Burn the yes tokens that are not backed anymore
+        burn_mint_tokens(
+            &ctx.accounts.yes_mint,
+            &ctx.accounts.liquidity_yes_tokens_account,
+            &ctx.accounts.market,
+            &ctx.accounts.token_program,
+            liquidity_shares_value,
+            &[&[
+                b"market",
+                ctx.accounts.market.authority.as_ref(),
+                &ctx.accounts.market.market_number.to_le_bytes(),
+                &ctx.accounts.market.bump.to_le_bytes(),
+            ]],
+        )?;
+
+        // Burn the no tokens that are not backed anymore
+        burn_mint_tokens(
+            &ctx.accounts.no_mint,
+            &ctx.accounts.liquidity_no_tokens_account,
+            &ctx.accounts.market,
+            &ctx.accounts.token_program,
+            liquidity_shares_value,
+            &[&[
+                b"market",
+                ctx.accounts.market.authority.as_ref(),
+                &ctx.accounts.market.market_number.to_le_bytes(),
+                &ctx.accounts.market.bump.to_le_bytes(),
+            ]],
+        )?;
+
+        // Then we are removing the shares from our representation of the pool
+        ctx.accounts.pool.usd_collateral -= liquidity_shares_value;
+        ctx.accounts.pool.liquidity_value -= liquidity_shares_value;
+        ctx.accounts.pool.liquidity_shares -= shares;
+        ctx.accounts.pool.yes_liquidity -= liquidity_shares_value;
+        ctx.accounts.pool.no_liquidity -= liquidity_shares_value;
+        ctx.accounts.pool.total_yes_mints -= liquidity_shares_value;
+        ctx.accounts.pool.total_no_mints -= liquidity_shares_value;
+
+        lowest_outcome -= liquidity_shares_value;
+        highest_outcome -= liquidity_shares_value;
+
+        let remaining_lowest_outcome =
+            ((highest_outcome as u128 * highest_price as u128) / lowest_price as u128) as u64;
+        let user_belonging_lowest_outcome = lowest_outcome - remaining_lowest_outcome;
+
+        // Now transfer from the liquidity pool to the user's account
+        transfer_outcome(
+            liquidity_outcome_token_account,
+            user_outcome_token_account,
+            &ctx.accounts.market,
+            &ctx.accounts.token_program,
+            user_belonging_lowest_outcome,
+            &[&[
+                b"market",
+                ctx.accounts.market.authority.as_ref(),
+                &ctx.accounts.market.market_number.to_le_bytes(),
+                &ctx.accounts.market.bump.to_le_bytes(),
+            ]],
+        )?;
+
+        // We reduce the pools liquidity
+        if ctx.accounts.pool.yes_liquidity < ctx.accounts.pool.no_liquidity {
+            ctx.accounts.pool.no_liquidity = remaining_lowest_outcome;
+        } else {
+            ctx.accounts.pool.yes_liquidity = remaining_lowest_outcome;
+        }
 
         Ok(())
     }
@@ -452,7 +556,7 @@ fn add_unequal_outcomes_with_more_no(
     // Pool minted tokens
     let new_lp_no_minted_tokens = new_no_minted_tokens; // It is the same being the less probable chance
     let new_lp_yes_minted_tokens = (no_token_price * new_no_minted_tokens) / yes_token_price;
-    let liquidity_squared = (new_lp_no_minted_tokens * new_lp_yes_minted_tokens) as u128;
+    let liquidity_squared = new_lp_no_minted_tokens as u128 * new_lp_yes_minted_tokens as u128;
     let new_liquidity_value = sqrt_u128(liquidity_squared) as u64;
 
     // Now, we calculate what we have to give to the user
