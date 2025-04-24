@@ -10,6 +10,7 @@ declare_id!("3waVbK9Pps4X1ZwS5GbwDQKmX5syrwe6guwnyN3YJfRc");
 pub mod solana_bet_placing_market {
     use super::*;
     use anchor_spl::token;
+    use std::cmp::min;
 
     pub fn initialize_market_factory(ctx: Context<InitializeMarketFactory>) -> Result<()> {
         let market_factory = &mut ctx.accounts.market_factory;
@@ -65,7 +66,7 @@ pub mod solana_bet_placing_market {
     }
 
     #[inline(never)]
-    pub fn add_liquidity(ctx: Context<AddLiquidity>, usd_amount: u64) -> Result<()> {
+    pub fn add_liquidity(ctx: Context<PoolLiquidity>, usd_amount: u64) -> Result<()> {
         require!(usd_amount > 0, MarketError::Zero);
 
         // let pool = &mut ctx.accounts.pool;
@@ -112,6 +113,44 @@ pub mod solana_bet_placing_market {
 
         // 2. Updating the pool with the new values
         ctx.accounts.pool.usd_collateral += usd_amount;
+
+        Ok(())
+    }
+
+    pub fn remove_liquidity(ctx: Context<PoolLiquidity>, shares: u64) -> Result<()> {
+        require!(
+            shares > ctx.accounts.user_lp_share_account.amount,
+            MarketError::InsufficientFunds
+        );
+        require!(shares > 0, MarketError::Zero);
+
+        // The first thing we are going to do is to burn the user's shares
+        // and remove them from the pool
+        {
+            // Burn the shares first
+            let cpi_context = CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                token::Burn {
+                    mint: ctx.accounts.lp_share_mint.to_account_info(),
+                    from: ctx.accounts.user_lp_share_account.to_account_info(),
+                    authority: ctx.accounts.user.to_account_info(), // the user must sign
+                },
+            );
+
+            token::burn(cpi_context, shares)?;
+        }
+
+        if ctx.accounts.pool.liquidity_value == 0 {
+            return Err(MarketError::MarketNotInitialized.into());
+        }
+        // Then we are going to calculate what share is the least probable outcome
+        let lowest_outcome = min(
+            ctx.accounts.pool.yes_liquidity,
+            ctx.accounts.pool.no_liquidity,
+        );
+        let liquidity_shares_value = (ctx.accounts.pool.liquidity_value as u128
+            / (lowest_outcome as u128 * shares as u128))
+            as u64;
 
         Ok(())
     }
@@ -166,7 +205,6 @@ pub mod solana_bet_placing_market {
             pool.usd_collateral += usd_amount;
             pool.total_yes_mints += usd_amount;
             pool.total_no_mints += usd_amount;
-
         } else if purchased_outcome_mint_pubkey == ctx.accounts.no_mint.key() {
             // NO token
             wanted_token_account = &ctx.accounts.liquidity_no_tokens_account;
@@ -180,7 +218,6 @@ pub mod solana_bet_placing_market {
             let usd = usd_amount as u128;
             let new_no_liquidity = (liquidity_value.pow(2) / (yes_liquidity + usd)) as u64;
             wanted_from_liquidity = ctx.accounts.pool.no_liquidity - new_no_liquidity;
-
 
             // Then we modify the pool values
             let pool = &mut ctx.accounts.pool;
@@ -239,7 +276,7 @@ pub mod solana_bet_placing_market {
         )?;
 
         // Now we are emitting the event
-        emit!(PurchasedOutcomeSharesEvent{
+        emit!(PurchasedOutcomeSharesEvent {
             market: ctx.accounts.market.key(),
             user: ctx.accounts.user.key(),
             amount: usd_amount,
@@ -297,8 +334,29 @@ pub fn transfer_outcome<'info>(
     token::transfer(cpi_context, amount)
 }
 
+fn burn_mint_tokens<'info>(
+    mint: &Account<'info, Mint>,
+    from_account: &Account<'info, TokenAccount>,
+    market: &Account<'info, Market>,
+    token_program: &Program<'info, Token>,
+    amount: u64,
+    signer: &[&[&[u8]]],
+) -> Result<()> {
+    let cpi_context = CpiContext::new_with_signer(
+        token_program.to_account_info(),
+        token::Burn {
+            mint: mint.to_account_info(),
+            from: from_account.to_account_info(),
+            authority: market.to_account_info(),
+        },
+        signer,
+    );
+
+    token::burn(cpi_context, amount)
+}
+
 #[inline(never)]
-fn add_liquidity_equal_outcomes(add_liquidity: &mut AddLiquidity, usd_amount: u64) -> Result<()> {
+fn add_liquidity_equal_outcomes(add_liquidity: &mut PoolLiquidity, usd_amount: u64) -> Result<()> {
     let market = &add_liquidity.market;
     let pool = &mut add_liquidity.pool;
 
@@ -376,7 +434,7 @@ fn add_liquidity_equal_outcomes(add_liquidity: &mut AddLiquidity, usd_amount: u6
 
 #[inline(never)]
 fn add_unequal_outcomes_with_more_no(
-    add_liquidity: &mut AddLiquidity,
+    add_liquidity: &mut PoolLiquidity,
     yes_token_price: u64,
     no_token_price: u64,
     usd_amount: u64,
@@ -493,7 +551,7 @@ fn add_unequal_outcomes_with_more_no(
 
 #[inline(never)]
 fn add_unequal_outcomes_with_more_yes(
-    add_liquidity: &mut AddLiquidity,
+    add_liquidity: &mut PoolLiquidity,
     yes_token_price: u64,
     no_token_price: u64,
     usd_amount: u64,
@@ -835,7 +893,7 @@ pub struct InitializePool<'info> {
 }
 
 #[derive(Accounts)]
-pub struct AddLiquidity<'info> {
+pub struct PoolLiquidity<'info> {
     #[account(mut)]
     pub pool: Account<'info, MarketPool>,
 
@@ -933,6 +991,8 @@ pub struct PurchaseOutcomeShares<'info> {
 pub enum MarketError {
     #[msg("The amount must be greater than zero.")]
     Zero,
+    #[msg("The amount to withdraw is bigger than the account balance.")]
+    InsufficientFunds,
     #[msg("The compared mints do no correspond.")]
     UnmatchedMints,
     #[msg("The given mint is not allowed in this transaction.")]
