@@ -86,10 +86,7 @@ pub mod solana_bet_placing_market {
         // 1. Minting the equal number of YES and NO tokens in case
         // the pool has equal chances for both outcomes.
         if ctx.accounts.pool.yes_liquidity == ctx.accounts.pool.no_liquidity {
-            add_liquidity_equal_outcomes(
-                ctx.accounts,
-                usd_amount
-            )?;
+            add_liquidity_equal_outcomes(ctx.accounts, usd_amount)?;
         } else {
             let total_tokens = ctx.accounts.pool.yes_liquidity + ctx.accounts.pool.no_liquidity;
             let yes_token_price = ctx.accounts.pool.yes_liquidity / total_tokens;
@@ -101,14 +98,14 @@ pub mod solana_bet_placing_market {
                     ctx.accounts,
                     yes_token_price,
                     no_token_price,
-                    usd_amount
+                    usd_amount,
                 )?;
             } else {
                 add_unequal_outcomes_with_more_yes(
                     ctx.accounts,
                     yes_token_price,
                     no_token_price,
-                    usd_amount
+                    usd_amount,
                 )?;
             }
         }
@@ -122,7 +119,7 @@ pub mod solana_bet_placing_market {
     pub fn purchase_outcome_shares(
         ctx: Context<PurchaseOutcomeShares>,
         usd_amount: u64,
-        purchased_outcome_mint_pubkey: Pubkey
+        purchased_outcome_mint_pubkey: Pubkey,
     ) -> Result<()> {
         // First and foremost, we need the amount to be bigger than 0
         require!(usd_amount > 0, MarketError::Zero);
@@ -134,27 +131,114 @@ pub mod solana_bet_placing_market {
                 to: ctx.accounts.vault.to_account_info(),
                 authority: ctx.accounts.user.to_account_info(),
             };
-            let cpi_ctx = CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                cpi_accounts
-            );
+            let cpi_ctx =
+                CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
 
             token::transfer(cpi_ctx, usd_amount)?;
         }
+
+        let wanted_token_account;
+        let other_token_account;
+        let wanted_mint;
+        let other_mint;
+        let wanted_from_liquidity;
 
         // Now we figure out whether the user wants
         // a YES or a NO token
         if purchased_outcome_mint_pubkey == ctx.accounts.yes_mint.key() {
             // YES token
+            wanted_token_account = &ctx.accounts.liquidity_yes_tokens_account;
+            other_token_account = &ctx.accounts.liquidity_no_tokens_account;
+            wanted_mint = &ctx.accounts.yes_mint;
+            other_mint = &ctx.accounts.no_mint;
+
+            // Calculating what is the difference between the initial and the new outcome
+            let liquidity_value = ctx.accounts.pool.liquidity_value as u128;
+            let no_liquidity = ctx.accounts.pool.no_liquidity as u128;
+            let usd = usd_amount as u128;
+            let new_yes_liquidity = (liquidity_value.pow(2) / (no_liquidity + usd)) as u64;
+            wanted_from_liquidity = ctx.accounts.pool.yes_liquidity - new_yes_liquidity;
+
+            // Then we modify the pool values
+            let pool = &mut ctx.accounts.pool;
+            pool.yes_liquidity = new_yes_liquidity;
+            pool.no_liquidity += usd_amount;
+            pool.usd_collateral += usd_amount;
+            pool.total_yes_mints += usd_amount;
+            pool.total_no_mints += usd_amount;
 
         } else if purchased_outcome_mint_pubkey == ctx.accounts.no_mint.key() {
             // NO token
+            wanted_token_account = &ctx.accounts.liquidity_no_tokens_account;
+            other_token_account = &ctx.accounts.liquidity_yes_tokens_account;
+            wanted_mint = &ctx.accounts.no_mint;
+            other_mint = &ctx.accounts.yes_mint;
 
+            // Calculating what is the difference between the initial and the new outcome
+            let liquidity_value = ctx.accounts.pool.liquidity_value as u128;
+            let yes_liquidity = ctx.accounts.pool.yes_liquidity as u128;
+            let usd = usd_amount as u128;
+            let new_no_liquidity = (liquidity_value.pow(2) / (yes_liquidity + usd)) as u64;
+            wanted_from_liquidity = ctx.accounts.pool.no_liquidity - new_no_liquidity;
+
+
+            // Then we modify the pool values
+            let pool = &mut ctx.accounts.pool;
+            pool.no_liquidity = new_no_liquidity;
+            pool.yes_liquidity += usd_amount;
+            pool.usd_collateral += usd_amount;
+            pool.total_yes_mints += usd_amount;
+            pool.total_no_mints += usd_amount;
         } else {
             return Err(MarketError::MintNotAllowed.into());
         }
 
+        // Now we need to first mint the wanted tokens into user's account
+        mint_outcome(
+            wanted_mint,
+            &ctx.accounts.user_outcome_mint_account,
+            &ctx.accounts.market,
+            &ctx.accounts.token_program,
+            usd_amount,
+            &[&[
+                b"market",
+                ctx.accounts.market.authority.as_ref(),
+                &ctx.accounts.market.market_number.to_le_bytes(),
+                &ctx.accounts.market.bump.to_le_bytes(),
+            ]],
+        )?;
 
+        // Then we mint the other tokens to the liquidity pool
+        mint_outcome(
+            other_mint,
+            other_token_account,
+            &ctx.accounts.market,
+            &ctx.accounts.token_program,
+            usd_amount,
+            &[&[
+                b"market",
+                ctx.accounts.market.authority.as_ref(),
+                &ctx.accounts.market.market_number.to_le_bytes(),
+                &ctx.accounts.market.bump.to_le_bytes(),
+            ]],
+        )?;
+
+        // Then we transfer the purchased tokens from the pool to the user
+        transfer_outcome(
+            wanted_token_account,
+            &ctx.accounts.user_outcome_mint_account,
+            &ctx.accounts.market,
+            &ctx.accounts.token_program,
+            wanted_from_liquidity,
+            &[&[
+                b"market",
+                ctx.accounts.market.authority.as_ref(),
+                &ctx.accounts.market.market_number.to_le_bytes(),
+                &ctx.accounts.market.bump.to_le_bytes(),
+            ]],
+        )?;
+
+        // Now we are modifying values in the pool
 
         Ok(())
     }
@@ -184,12 +268,30 @@ pub fn mint_outcome<'info>(
     token::mint_to(cpi_context, amount)
 }
 
-#[inline(never)]
-fn add_liquidity_equal_outcomes(
-    add_liquidity: &mut AddLiquidity,
-    usd_amount: u64,
+pub fn transfer_outcome<'info>(
+    from_mint_account: &Account<'info, TokenAccount>,
+    to_mint_account: &Account<'info, TokenAccount>,
+    market: &Account<'info, Market>,
+    token_program: &Program<'info, Token>,
+    amount: u64,
+    signer: &[&[&[u8]]],
 ) -> Result<()> {
-    let market = & add_liquidity.market;
+    let cpi_context = CpiContext::new_with_signer(
+        token_program.to_account_info(),
+        token::Transfer {
+            from: from_mint_account.to_account_info(),
+            to: to_mint_account.to_account_info(),
+            authority: market.to_account_info(),
+        },
+        signer,
+    );
+
+    token::transfer(cpi_context, amount)
+}
+
+#[inline(never)]
+fn add_liquidity_equal_outcomes(add_liquidity: &mut AddLiquidity, usd_amount: u64) -> Result<()> {
+    let market = &add_liquidity.market;
     let pool = &mut add_liquidity.pool;
 
     // mint first the YES tokens
@@ -272,7 +374,7 @@ fn add_unequal_outcomes_with_more_no(
     usd_amount: u64,
 ) -> Result<()> {
     let pool = &mut add_liquidity.pool;
-    let market = & add_liquidity.market;
+    let market = &add_liquidity.market;
 
     // Total Minted tokens
     let new_no_minted_tokens = pool.no_liquidity + usd_amount;
@@ -283,10 +385,8 @@ fn add_unequal_outcomes_with_more_no(
 
     // Pool minted tokens
     let new_lp_no_minted_tokens = new_no_minted_tokens; // It is the same being the less probable chance
-    let new_lp_yes_minted_tokens =
-        (no_token_price * new_no_minted_tokens) / yes_token_price;
-    let liquidity_squared =
-        (new_lp_no_minted_tokens * new_lp_yes_minted_tokens) as u128;
+    let new_lp_yes_minted_tokens = (no_token_price * new_no_minted_tokens) / yes_token_price;
+    let liquidity_squared = (new_lp_no_minted_tokens * new_lp_yes_minted_tokens) as u128;
     let new_liquidity_value = sqrt_u128(liquidity_squared) as u64;
 
     // Now, we calculate what we have to give to the user
@@ -357,18 +457,18 @@ fn add_unequal_outcomes_with_more_no(
 
     // Send the event
     emit!(LiquidityAddedEvent {
-                    market: market.key(),
-                    user: add_liquidity.user.key(),
-                    amount: usd_amount,
-                    liquidity_shares_gained: user_belonging_liquidity_shares,
-                    usd_added_to_pool: user_belonging_liquidity_shares,
-                    yes_added_to_pool: yes_lp_minted,
-                    no_added_to_pool: usd_amount,
-                    yes_given_to_user: user_belonging_yes_tokens,
-                    no_given_to_user: 0,
-                    yes_minted: usd_amount,
-                    no_minted: usd_amount,
-                });
+        market: market.key(),
+        user: add_liquidity.user.key(),
+        amount: usd_amount,
+        liquidity_shares_gained: user_belonging_liquidity_shares,
+        usd_added_to_pool: user_belonging_liquidity_shares,
+        yes_added_to_pool: yes_lp_minted,
+        no_added_to_pool: usd_amount,
+        yes_given_to_user: user_belonging_yes_tokens,
+        no_given_to_user: 0,
+        yes_minted: usd_amount,
+        no_minted: usd_amount,
+    });
 
     // Now we update the pool
     pool.yes_liquidity += yes_lp_minted;
@@ -381,7 +481,6 @@ fn add_unequal_outcomes_with_more_no(
     pool.liquidity_shares = new_liquidity_value;
 
     Ok(())
-
 }
 
 #[inline(never)]
@@ -389,10 +488,10 @@ fn add_unequal_outcomes_with_more_yes(
     add_liquidity: &mut AddLiquidity,
     yes_token_price: u64,
     no_token_price: u64,
-    usd_amount:  u64,
+    usd_amount: u64,
 ) -> Result<()> {
     let pool = &mut add_liquidity.pool;
-    let market = & add_liquidity.market;
+    let market = &add_liquidity.market;
 
     // Total Minted tokens
     let new_no_minted_tokens = pool.no_liquidity + usd_amount;
@@ -402,10 +501,8 @@ fn add_unequal_outcomes_with_more_yes(
     // therefore, we are going to give back to the user the more probable outcome: NO
     // Pool minted tokens
     let new_lp_yes_minted_tokens = new_yes_minted_tokens; // It is the same being the less probable chance
-    let new_lp_no_minted_tokens =
-        (yes_token_price * new_yes_minted_tokens) / no_token_price;
-    let liquidity_squared =
-        (new_lp_no_minted_tokens * new_lp_yes_minted_tokens) as u128;
+    let new_lp_no_minted_tokens = (yes_token_price * new_yes_minted_tokens) / no_token_price;
+    let liquidity_squared = (new_lp_no_minted_tokens * new_lp_yes_minted_tokens) as u128;
     let new_liquidity_value = sqrt_u128(liquidity_squared) as u64;
 
     // Now, we calculate what we have to give to the user
@@ -476,18 +573,18 @@ fn add_unequal_outcomes_with_more_yes(
 
     // Send the event
     emit!(LiquidityAddedEvent {
-                    market: market.key(),
-                    user: add_liquidity.user.key(),
-                    amount: usd_amount,
-                    liquidity_shares_gained: user_belonging_liquidity_shares,
-                    usd_added_to_pool: user_belonging_liquidity_shares,
-                    yes_added_to_pool: usd_amount,
-                    no_added_to_pool: no_lp_minted,
-                    yes_given_to_user: 0,
-                    no_given_to_user: user_belonging_no_tokens,
-                    yes_minted: usd_amount,
-                    no_minted: usd_amount,
-                });
+        market: market.key(),
+        user: add_liquidity.user.key(),
+        amount: usd_amount,
+        liquidity_shares_gained: user_belonging_liquidity_shares,
+        usd_added_to_pool: user_belonging_liquidity_shares,
+        yes_added_to_pool: usd_amount,
+        no_added_to_pool: no_lp_minted,
+        yes_given_to_user: 0,
+        no_given_to_user: user_belonging_no_tokens,
+        yes_minted: usd_amount,
+        no_minted: usd_amount,
+    });
 
     // Now we update the pool
     pool.yes_liquidity += usd_amount;
@@ -577,7 +674,7 @@ pub struct PurchasedOutcomeSharesEvent {
     pub no_purchased: u64,
     pub pool_remaining_yes_tokens: u64,
     pub pool_remaining_no_tokens: u64,
-    pub liquidity_pool_value: u64
+    pub liquidity_pool_value: u64,
 }
 
 impl Market {
@@ -782,6 +879,7 @@ pub struct AddLiquidity<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(purchased_outcome_mint_pubkey: Pubkey)]
 pub struct PurchaseOutcomeShares<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
@@ -801,7 +899,10 @@ pub struct PurchaseOutcomeShares<'info> {
     #[account(mut)]
     pub user_usd_account: Account<'info, TokenAccount>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = user_outcome_mint_account.mint == purchased_outcome_mint_pubkey
+    )]
     pub user_outcome_mint_account: Account<'info, TokenAccount>,
 
     #[account(
