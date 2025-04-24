@@ -238,7 +238,15 @@ pub mod solana_bet_placing_market {
             ]],
         )?;
 
-        // Now we are modifying values in the pool
+        // Now we are emitting the event
+        emit!(PurchasedOutcomeSharesEvent{
+            market: ctx.accounts.market.key(),
+            user: ctx.accounts.user.key(),
+            amount: usd_amount,
+            wanted_shares_purchased: usd_amount + wanted_from_liquidity,
+            pool_remaining_yes_tokens: ctx.accounts.pool.yes_liquidity,
+            pool_remaining_no_tokens: ctx.accounts.pool.no_liquidity,
+        });
 
         Ok(())
     }
@@ -670,11 +678,9 @@ pub struct PurchasedOutcomeSharesEvent {
     pub market: Pubkey,
     pub user: Pubkey,
     pub amount: u64,
-    pub yes_purchased: u64,
-    pub no_purchased: u64,
+    pub wanted_shares_purchased: u64,
     pub pool_remaining_yes_tokens: u64,
     pub pool_remaining_no_tokens: u64,
-    pub liquidity_pool_value: u64,
 }
 
 impl Market {
