@@ -72,6 +72,12 @@ pub mod solana_bet_placing_market {
         ctx.accounts.market.outcome = Some(outcome);
         ctx.accounts.market.resolved = true;
 
+        emit!(MarketResolvedEvent{
+            market: ctx.accounts.market.key(),
+            solver: ctx.accounts.oracle.key(),
+            outcome,
+        });
+
         Ok(())
     }
 
@@ -888,6 +894,13 @@ pub struct PurchasedOutcomeSharesEvent {
     pub wanted_shares_purchased: u64,
     pub pool_remaining_yes_tokens: u64,
     pub pool_remaining_no_tokens: u64,
+}
+
+#[event]
+pub struct MarketResolvedEvent {
+    pub market: Pubkey,
+    pub solver: Pubkey,
+    pub outcome: u8,
 }
 
 impl Market {
