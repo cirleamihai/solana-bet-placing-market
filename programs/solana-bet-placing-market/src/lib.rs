@@ -1000,7 +1000,8 @@ pub struct InitializePool<'info> {
         seeds = [b"yes_liquidity_pool", market.key().as_ref()],
         bump,
         payer = authority,
-        space = 8 + MarketPool::LEN
+        token::mint = yes_mint,
+        token::authority = market,
     )]
     pub liquidity_yes_tokens_account: Account<'info, TokenAccount>,
 
@@ -1010,7 +1011,8 @@ pub struct InitializePool<'info> {
         seeds = [b"no_liquidity_pool", market.key().as_ref()],
         bump,
         payer = authority,
-        space = 8 + MarketPool::LEN
+        token::mint = no_mint,
+        token::authority = market,
     )]
     pub liquidity_no_tokens_account: Account<'info, TokenAccount>,
 
@@ -1021,6 +1023,12 @@ pub struct InitializePool<'info> {
     /// The account that pays for the initialization.
     #[account(mut)]
     pub authority: Signer<'info>,
+
+    /// The YES mint
+    pub yes_mint: Account<'info, Mint>,
+
+    /// The NO mint
+    pub no_mint: Account<'info, Mint>,
 
     /// Programs and sysvars.
     pub system_program: Program<'info, System>,
