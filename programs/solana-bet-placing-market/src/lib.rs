@@ -47,7 +47,6 @@ pub mod solana_bet_placing_market {
         let pool = &mut ctx.accounts.pool;
 
         // Store the details for the freshly initialized pool
-        pool.market = ctx.accounts.market.key();
         pool.yes_liquidity = 0;
         pool.no_liquidity = 0;
         pool.usd_collateral = 0;
@@ -842,7 +841,6 @@ pub struct Market {
 
 #[account]
 pub struct MarketPool {
-    pub market: Pubkey,
     pub liquidity_yes_tokens_account: Pubkey,
     pub liquidity_no_tokens_account: Pubkey,
     pub yes_liquidity: u64,
