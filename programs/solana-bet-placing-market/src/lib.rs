@@ -19,7 +19,7 @@ pub mod solana_bet_placing_market {
         Ok(())
     }
 
-    pub fn create_new_market(ctx: Context<InitializeMarket>) -> Result<()> {
+    pub fn create_new_market(ctx: Context<InitializeMarket>, oracle_key: Pubkey) -> Result<()> {
         let market = &mut ctx.accounts.market;
         let market_factory = &mut ctx.accounts.market_factory;
 
@@ -32,6 +32,7 @@ pub mod solana_bet_placing_market {
         market.vault = ctx.accounts.vault.key();
         market.authority = ctx.accounts.authority.key();
         market.market_number = market_factory.created_markets;
+        market.oracle = oracle_key;  // This is the external resolver
         market.bump = ctx.bumps.market;
         market.outcome = None;
         market.resolved = false;
@@ -66,6 +67,7 @@ pub mod solana_bet_placing_market {
     pub fn resolve_market(ctx: Context<ResolveMarket>, outcome: u8) -> Result<()> {
         require!(ctx.accounts.market.resolved == false, MarketError::MarketResolved);
         require!(outcome == 0 || outcome == 1, MarketError::InvalidOutcome);
+
 
         // Set the outcome and mark the market as resolved
         ctx.accounts.market.outcome = Some(outcome);
@@ -831,7 +833,7 @@ pub struct Market {
     pub lp_share_mint: Pubkey, // lp mint that is used to represent total shares on a given pool
     pub vault: Pubkey,
     pub authority: Pubkey, // Who can create and do operations on the market
-    pub oracle: Pubkey,
+    pub oracle: Pubkey,  // Who can resolve markets and set outcomes
     pub market_number: u64,
     pub resolved: bool,
     pub outcome: Option<u8>, // 0 = No, 1 = Yes,
@@ -1013,8 +1015,7 @@ pub struct InitializePool<'info> {
         bump,
         payer = authority,
         token::mint = yes_mint,
-        token::authority = market,
-        space = TokenAccount::LEN
+        token::authority = market
     )]
     pub liquidity_yes_tokens_account: Account<'info, TokenAccount>,
 
@@ -1025,8 +1026,7 @@ pub struct InitializePool<'info> {
         bump,
         payer = authority,
         token::mint = no_mint,
-        token::authority = market,
-        space = TokenAccount::LEN
+        token::authority = market
     )]
     pub liquidity_no_tokens_account: Account<'info, TokenAccount>,
 
@@ -1142,6 +1142,15 @@ pub struct PurchaseOutcomeShares<'info> {
     pub user: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct ResolveMarket<'info> {
+    #[account(mut, has_one = oracle)]
+    pub market: Account<'info, Market>,
+
+    /// CHECK: must match `market.oracle`, enforced by `has_one`
+    pub oracle: Signer<'info>,
 }
 
 #[error_code]
