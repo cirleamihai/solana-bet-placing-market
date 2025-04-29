@@ -1,6 +1,5 @@
 use anchor_lang::error_code;
 use anchor_lang::prelude::*;
-use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
@@ -118,7 +117,7 @@ pub mod solana_bet_placing_market {
 
     pub fn remove_liquidity(ctx: Context<PoolLiquidity>, shares: u64) -> Result<()> {
         require!(
-            shares > ctx.accounts.user_lp_share_account.amount,
+            shares < ctx.accounts.user_lp_share_account.amount,
             MarketError::InsufficientFunds
         );
         require!(shares > 0, MarketError::Zero);
@@ -979,7 +978,6 @@ pub struct InitializeMarket<'info> {
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 #[derive(Accounts)]
