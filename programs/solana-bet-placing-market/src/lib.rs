@@ -368,7 +368,7 @@ pub mod solana_bet_placing_market {
                 burnt_lp_shares: shares,
                 equivalent_usd: user_belonging_money,
                 received_lowest_outcome_tokens: 0,
-                received_lowest_outcome_mint: Pubkey([0; 32]),
+                received_lowest_outcome_mint: Pubkey::default(),
                 remaining_yes_tokens: ctx.accounts.pool.yes_liquidity,
                 remaining_no_tokens: ctx.accounts.pool.no_liquidity,
             });
