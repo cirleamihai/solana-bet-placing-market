@@ -63,9 +63,21 @@ pub mod solana_bet_placing_market {
         Ok(())
     }
 
+    pub fn resolve_market(ctx: Context<ResolveMarket>, outcome: u8) -> Result<()> {
+        require!(ctx.accounts.market.resolved == false, MarketError::MarketResolved);
+        require!(outcome == 0 || outcome == 1, MarketError::InvalidOutcome);
+
+        // Set the outcome and mark the market as resolved
+        ctx.accounts.market.outcome = Some(outcome);
+        ctx.accounts.market.resolved = true;
+
+        Ok(())
+    }
+
     #[inline(never)]
     pub fn add_liquidity(ctx: Context<PoolLiquidity>, usd_amount: u64) -> Result<()> {
         require!(usd_amount > 0, MarketError::Zero);
+        require!(ctx.accounts.market.resolved == false, MarketError::MarketResolved);
 
         // let pool = &mut ctx.accounts.pool;
         // let market = &ctx.accounts.market;
@@ -121,6 +133,7 @@ pub mod solana_bet_placing_market {
             MarketError::InsufficientFunds
         );
         require!(shares > 0, MarketError::Zero);
+        require!(ctx.accounts.market.resolved == false, MarketError::MarketResolved);
 
         // The first thing we are going to do is to burn the user's shares
         // and remove them from the pool
@@ -284,6 +297,7 @@ pub mod solana_bet_placing_market {
     ) -> Result<()> {
         // First and foremost, we need the amount to be bigger than 0
         require!(usd_amount > 0, MarketError::Zero);
+        require!(ctx.accounts.market.resolved == false, MarketError::MarketResolved);
 
         // Transfer the usd to the market vault
         {
@@ -816,7 +830,8 @@ pub struct Market {
     pub no_mint: Pubkey,
     pub lp_share_mint: Pubkey, // lp mint that is used to represent total shares on a given pool
     pub vault: Pubkey,
-    pub authority: Pubkey, // Who can resolve
+    pub authority: Pubkey, // Who can create and do operations on the market
+    pub oracle: Pubkey,
     pub market_number: u64,
     pub resolved: bool,
     pub outcome: Option<u8>, // 0 = No, 1 = Yes,
@@ -877,7 +892,7 @@ pub struct PurchasedOutcomeSharesEvent {
 
 impl Market {
     // Calculate the required space. Remember: 8 bytes for the discriminator.
-    pub const LEN: usize = 8 + 32 * 6 + 8 + 1 + 2 + 1;
+    pub const LEN: usize = 8 + 32 * 7 + 8 + 1 + 2 + 1;
 }
 
 impl MarketPool {
@@ -981,7 +996,6 @@ pub struct InitializeMarket<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction()]
 pub struct InitializePool<'info> {
     #[account(
         init,
@@ -1000,6 +1014,7 @@ pub struct InitializePool<'info> {
         payer = authority,
         token::mint = yes_mint,
         token::authority = market,
+        space = TokenAccount::LEN
     )]
     pub liquidity_yes_tokens_account: Account<'info, TokenAccount>,
 
@@ -1011,6 +1026,7 @@ pub struct InitializePool<'info> {
         payer = authority,
         token::mint = no_mint,
         token::authority = market,
+        space = TokenAccount::LEN
     )]
     pub liquidity_no_tokens_account: Account<'info, TokenAccount>,
 
@@ -1144,4 +1160,6 @@ pub enum MarketError {
     MarketNotResolved,
     #[msg("The market is not initialized.")]
     MarketNotInitialized,
+    #[msg("The outcome is invalid.")]
+    InvalidOutcome,
 }
