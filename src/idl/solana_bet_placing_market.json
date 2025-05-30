@@ -1,0 +1,1070 @@
+{
+  "address": "3waVbK9Pps4X1ZwS5GbwDQKmX5syrwe6guwnyN3YJfRc",
+  "metadata": {
+    "name": "solana_bet_placing_market",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "add_liquidity",
+      "discriminator": [
+        181,
+        157,
+        89,
+        67,
+        143,
+        182,
+        52,
+        72
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "relations": [
+            "market"
+          ]
+        },
+        {
+          "name": "yes_mint",
+          "writable": true
+        },
+        {
+          "name": "no_mint",
+          "writable": true
+        },
+        {
+          "name": "lp_share_mint",
+          "writable": true
+        },
+        {
+          "name": "user_usd_account",
+          "writable": true
+        },
+        {
+          "name": "user_yes_account",
+          "writable": true
+        },
+        {
+          "name": "user_no_account",
+          "writable": true
+        },
+        {
+          "name": "user_lp_share_account",
+          "writable": true
+        },
+        {
+          "name": "liquidity_yes_tokens_account",
+          "writable": true
+        },
+        {
+          "name": "liquidity_no_tokens_account",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "usd_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "create_new_market",
+      "discriminator": [
+        31,
+        82,
+        92,
+        203,
+        185,
+        97,
+        73,
+        49
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "account",
+                "path": "market_factory.created_markets",
+                "account": "MarketFactory"
+              }
+            ]
+          }
+        },
+        {
+          "name": "yes_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  121,
+                  101,
+                  115,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "no_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "lp_share_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  112,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  101,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usd_mint"
+        },
+        {
+          "name": "market_factory",
+          "docs": [
+            "The factory for the market."
+          ]
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "The vault account where the USD tokens are escrowed.",
+            "Its authority is also set to the market PDA."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "docs": [
+            "The account that pays for the initialization."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "docs": [
+            "Programs and sysvars."
+          ],
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "oracle_key",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "initialize_market_factory",
+      "discriminator": [
+        122,
+        38,
+        199,
+        183,
+        140,
+        121,
+        113,
+        71
+      ],
+      "accounts": [
+        {
+          "name": "market_factory",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  102,
+                  97,
+                  99,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "docs": [
+            "The account that pays for the initialization."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "docs": [
+            "Programs and sysvars."
+          ],
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_pool",
+      "discriminator": [
+        95,
+        180,
+        10,
+        172,
+        84,
+        174,
+        232,
+        40
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "liquidity_yes_tokens_account",
+          "docs": [
+            "The liquidity pool yes tokens account."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  121,
+                  101,
+                  115,
+                  95,
+                  108,
+                  105,
+                  113,
+                  117,
+                  105,
+                  100,
+                  105,
+                  116,
+                  121,
+                  95,
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "liquidity_no_tokens_account",
+          "docs": [
+            "The liquidity pool no tokens account."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  95,
+                  108,
+                  105,
+                  113,
+                  117,
+                  105,
+                  100,
+                  105,
+                  116,
+                  121,
+                  95,
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "docs": [
+            "The market account."
+          ],
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "docs": [
+            "The account that pays for the initialization."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "yes_mint",
+          "docs": [
+            "The YES mint"
+          ]
+        },
+        {
+          "name": "no_mint",
+          "docs": [
+            "The NO mint"
+          ]
+        },
+        {
+          "name": "system_program",
+          "docs": [
+            "Programs and sysvars."
+          ],
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "purchase_outcome_shares",
+      "discriminator": [
+        187,
+        102,
+        109,
+        80,
+        214,
+        67,
+        102,
+        158
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "yes_mint",
+          "writable": true
+        },
+        {
+          "name": "no_mint",
+          "writable": true
+        },
+        {
+          "name": "user_usd_account",
+          "writable": true
+        },
+        {
+          "name": "user_outcome_mint_account",
+          "writable": true
+        },
+        {
+          "name": "liquidity_yes_tokens_account",
+          "writable": true
+        },
+        {
+          "name": "liquidity_no_tokens_account",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "usd_amount",
+          "type": "u64"
+        },
+        {
+          "name": "purchased_outcome_mint_pubkey",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "remove_liquidity",
+      "discriminator": [
+        80,
+        85,
+        209,
+        72,
+        24,
+        206,
+        177,
+        108
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "relations": [
+            "market"
+          ]
+        },
+        {
+          "name": "yes_mint",
+          "writable": true
+        },
+        {
+          "name": "no_mint",
+          "writable": true
+        },
+        {
+          "name": "lp_share_mint",
+          "writable": true
+        },
+        {
+          "name": "user_usd_account",
+          "writable": true
+        },
+        {
+          "name": "user_yes_account",
+          "writable": true
+        },
+        {
+          "name": "user_no_account",
+          "writable": true
+        },
+        {
+          "name": "user_lp_share_account",
+          "writable": true
+        },
+        {
+          "name": "liquidity_yes_tokens_account",
+          "writable": true
+        },
+        {
+          "name": "liquidity_no_tokens_account",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "shares",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "resolve_market",
+      "discriminator": [
+        155,
+        23,
+        80,
+        173,
+        46,
+        74,
+        23,
+        239
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "oracle",
+          "signer": true,
+          "relations": [
+            "market"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "outcome",
+          "type": "u8"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Market",
+      "discriminator": [
+        219,
+        190,
+        213,
+        55,
+        0,
+        227,
+        198,
+        154
+      ]
+    },
+    {
+      "name": "MarketFactory",
+      "discriminator": [
+        240,
+        10,
+        232,
+        144,
+        147,
+        239,
+        152,
+        57
+      ]
+    },
+    {
+      "name": "MarketPool",
+      "discriminator": [
+        180,
+        105,
+        154,
+        232,
+        165,
+        224,
+        174,
+        203
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "LiquidityAddedEvent",
+      "discriminator": [
+        220,
+        104,
+        7,
+        39,
+        147,
+        1,
+        194,
+        142
+      ]
+    },
+    {
+      "name": "LiquidityRemovedEvent",
+      "discriminator": [
+        233,
+        117,
+        13,
+        70,
+        229,
+        1,
+        106,
+        215
+      ]
+    },
+    {
+      "name": "MarketResolvedEvent",
+      "discriminator": [
+        87,
+        249,
+        34,
+        139,
+        194,
+        159,
+        14,
+        156
+      ]
+    },
+    {
+      "name": "PurchasedOutcomeSharesEvent",
+      "discriminator": [
+        87,
+        245,
+        9,
+        92,
+        25,
+        49,
+        252,
+        104
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Zero",
+      "msg": "The amount must be greater than zero."
+    },
+    {
+      "code": 6001,
+      "name": "InsufficientFunds",
+      "msg": "The amount to withdraw is bigger than the account balance."
+    },
+    {
+      "code": 6002,
+      "name": "UnmatchedMints",
+      "msg": "The compared mints do no correspond."
+    },
+    {
+      "code": 6003,
+      "name": "MintNotAllowed",
+      "msg": "The given mint is not allowed in this transaction."
+    },
+    {
+      "code": 6004,
+      "name": "MarketResolved",
+      "msg": "The market is already resolved."
+    },
+    {
+      "code": 6005,
+      "name": "MarketNotResolved",
+      "msg": "The market is not resolved yet."
+    },
+    {
+      "code": 6006,
+      "name": "MarketNotInitialized",
+      "msg": "The market is not initialized."
+    },
+    {
+      "code": 6007,
+      "name": "InvalidOutcome",
+      "msg": "The outcome is invalid."
+    }
+  ],
+  "types": [
+    {
+      "name": "LiquidityAddedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "liquidity_shares_gained",
+            "type": "u64"
+          },
+          {
+            "name": "usd_added_to_pool",
+            "type": "u64"
+          },
+          {
+            "name": "yes_added_to_pool",
+            "type": "u64"
+          },
+          {
+            "name": "no_added_to_pool",
+            "type": "u64"
+          },
+          {
+            "name": "yes_given_to_user",
+            "type": "u64"
+          },
+          {
+            "name": "no_given_to_user",
+            "type": "u64"
+          },
+          {
+            "name": "yes_minted",
+            "type": "u64"
+          },
+          {
+            "name": "no_minted",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidityRemovedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "burnt_lp_shares",
+            "type": "u64"
+          },
+          {
+            "name": "equivalent_usd",
+            "type": "u64"
+          },
+          {
+            "name": "received_lowest_outcome_tokens",
+            "type": "u64"
+          },
+          {
+            "name": "received_lowest_outcome_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "remaining_yes_tokens",
+            "type": "u64"
+          },
+          {
+            "name": "remaining_no_tokens",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Market",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "usd_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "yes_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "no_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "lp_share_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "oracle",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_number",
+            "type": "u64"
+          },
+          {
+            "name": "resolved",
+            "type": "bool"
+          },
+          {
+            "name": "outcome",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketFactory",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "created_markets",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketPool",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "liquidity_yes_tokens_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "liquidity_no_tokens_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "yes_liquidity",
+            "type": "u64"
+          },
+          {
+            "name": "no_liquidity",
+            "type": "u64"
+          },
+          {
+            "name": "liquidity_value",
+            "type": "u64"
+          },
+          {
+            "name": "liquidity_shares",
+            "type": "u64"
+          },
+          {
+            "name": "usd_collateral",
+            "type": "u64"
+          },
+          {
+            "name": "total_yes_mints",
+            "type": "u64"
+          },
+          {
+            "name": "total_no_mints",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketResolvedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "solver",
+            "type": "pubkey"
+          },
+          {
+            "name": "outcome",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PurchasedOutcomeSharesEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "wanted_shares_purchased",
+            "type": "u64"
+          },
+          {
+            "name": "pool_remaining_yes_tokens",
+            "type": "u64"
+          },
+          {
+            "name": "pool_remaining_no_tokens",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}
