@@ -21,7 +21,6 @@ export default function MarketGrid() {
             try {
                 // @ts-ignore
                 const fetchedMarkets = await program.account.market.all();
-                console.log(program.account)
                 setMarkets(fetchedMarkets);
 
                 const pubkeys = fetchedMarkets.map((m: any) => m.publicKey.toBase58());
