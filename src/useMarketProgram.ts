@@ -1,14 +1,33 @@
-import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
-import { PublicKey } from "@solana/web3.js";
-import { Program, AnchorProvider, Idl, setProvider } from "@coral-xyz/anchor";
+// src/useMarketProgram.ts
+import {useMemo} from "react";
+import {useConnection, useAnchorWallet} from "@solana/wallet-adapter-react";
+import {
+    Program,
+    AnchorProvider,
+    Idl,
+    Wallet,
+} from "@coral-xyz/anchor";
 import idl from "./idl/solana_bet_placing_market.json";
+import {PublicKey} from "@solana/web3.js";
 
-const { connection } = useConnection();
-const wallet = useAnchorWallet();
-const provider = new AnchorProvider(connection, wallet, {});
-setProvider(provider);
+export function useMarketProgram() {
+    const {connection} = useConnection();
+    const wallet = useAnchorWallet();
 
-export const program = new Program(idl as Idl, { connection });
-export const PROGRAM_ID = new PublicKey(
-    "3waVbK9Pps4X1ZwS5GbwDQKmX5syrwe6guwnyN3YJfRc"
-);
+    const provider = useMemo(() => {
+        if (!wallet) return null;
+        return new AnchorProvider(connection, wallet, {});
+    }, [connection, wallet]);
+
+    const program = useMemo(() => {
+        if (!provider) return null;
+        return new Program(idl as Idl, provider);  // The program ID will be taken from the idl configuration
+    }, [provider]);
+
+    return {
+        program,
+        provider,
+        wallet,
+        connection,
+    };
+}

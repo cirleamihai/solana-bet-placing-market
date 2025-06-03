@@ -1,7 +1,7 @@
 import React from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import NavBar from "@/src/components/NavBar";
-import MarketList from "@/src/components/MarketList";
+import NavBar from "@/components/NavBar";
+import MarketList from "@/components/MarketList";
 // import MarketDetails from "@/src/components/MarketDetails";
 import "./styles/globals.css";
 
