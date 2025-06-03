@@ -23,9 +23,9 @@ export const MarketCard = ({
     <Card className="bg-[#2f4150] rounded-xl p-4 min-h-[170px] shadow-md hover:shadow-lg transition-all transform-gpu hover:scale-[1.02]  relative border border-[#486279] hover:border-[#64b5f6] hover:bg-[#3b5266]">
         <CardContent className="p-0 flex flex-col gap-4 h-full justify-between">
             {/* ── Header ─────────────────────────────── */}
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between mb-5">
                 <Link to={`/market/${marketPubkey}`} className="flex-1 pr-2">
-                    <h2 className="text-xl font-semibold text-white leading-snug hover:underline">
+                    <h2 className="text-xl font-semibold text-white leading-snug w-[85%] hover:underline break-words whitespace-normal">
                         {question}
                     </h2>
 
@@ -38,8 +38,7 @@ export const MarketCard = ({
             </div>
 
             {/* ── Buy Buttons ───────────────────────── */}
-            <div className="flex-col gap-2 mt-7">
-
+            <div className="flex-col gap-2 mt-auto">
                 <div className="text-sm text-slate-300 font-medium flex gap-4 mt-1 mb-2.5 justify-between">
                     <span>Yes: <span className="text-white">${yesProbability.toFixed(2)}</span></span>
                     <span>No: <span className="text-white">${(100 - yesProbability).toFixed(2)}</span></span>

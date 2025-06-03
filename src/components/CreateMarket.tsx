@@ -24,6 +24,7 @@ import {toast} from "sonner";
 import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
 import {ensureFactory} from "@/blockchain/ensureFactory";
 import BN from "bn.js";
+import {supabase} from "@/lib/supabase";
 
 interface Props {
     open: boolean;
@@ -85,7 +86,23 @@ export default function CreateMarketModal({open, onClose}: Props) {
                 })
                 .rpc();
 
-            toast.success("Market created 🎉");
+            // Also update the supabase metadata
+            const {data, error} = await supabase
+                .from("market_metadata")
+                .insert({
+                    market_pubkey: marketPda.toBase58(),
+                    market_name: marketName,
+                    market_category: selectedTopic,
+                    created_by: wallet.publicKey.toBase58(),
+                });
+
+            if (error) {
+                console.error("Supabase insert error:", error);
+                toast.error("Market was created but metadata failed to save.");
+                return
+            }
+
+            toast.success("Market created successfully!");
             onModalClose();
         } catch (e) {
             console.error(e);

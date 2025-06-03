@@ -57,26 +57,30 @@ export default function MarketGrid() {
     return markets.length === 0 ? (
         <EmptyState/>
     ) : (
-        <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(280px,1fr))] w-[58%] mx-auto mt-8">
-            {markets.map(({account, publicKey}, i) => {
-                const keyStr = publicKey.toBase58();
+        <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(280px,auto))] w-[58%] mx-auto mt-8">
+            {markets.filter((market) => {
+                const key = market.publicKey.toBase58();
+                return metadata.hasOwnProperty(key);
+            })
+                .map(({account, publicKey}, i) => {
+                    const keyStr = publicKey.toBase58();
 
-                /* your on-chain struct has yes_liquidity / no_liquidity */
-                const yes = Number(account.yesLiquidity ?? 0);
-                const no = Number(account.noLiquidity ?? 0);
-                const vol = yes + no;
-                const yesPct = vol ? Math.floor((yes / vol) * 100) : 50;
+                    /* your on-chain struct has yes_liquidity / no_liquidity */
+                    const yes = Number(account.yesLiquidity ?? 0);
+                    const no = Number(account.noLiquidity ?? 0);
+                    const vol = yes + no;
+                    const yesPct = vol ? Math.floor((yes / vol) * 100) : 50;
 
-                return (
-                    <MarketCard
-                        key={keyStr}
-                        marketPubkey={keyStr}
-                        question={metadata[keyStr] || `Market #${i + 1}`}
-                        yesProbability={yesPct}
-                        volume={`${vol.toLocaleString()} tokens`}
-                    />
-                );
-            })}
+                    return (
+                        <MarketCard
+                            key={keyStr}
+                            marketPubkey={keyStr}
+                            question={metadata[keyStr] || `Market #${i + 1}`}
+                            yesProbability={yesPct}
+                            volume={`$${vol.toLocaleString()}`}
+                        />
+                    );
+                })}
         </div>
     )
 
