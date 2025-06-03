@@ -5,17 +5,21 @@ import MarketGrid from "@/components/MarketGrid";
 import Header from "@/components/Header";
 // import MarketDetails from "@/src/components/MarketDetails";
 import "./styles/globals.css";
+import {Toaster} from "sonner";
 
 export default function App() {
     return (
-        <Router>
-            <div className={"bg-slate-800 min-h-screen"}>
-            <Header/>
-                <Routes>
-                    <Route path="/" element={<MarketGrid/>}/>
-                    {/*<Route path="/market/:id" element={<MarketDetails />} />*/}
-                </Routes>
-            </div>
-        </Router>
+        <>
+            <Toaster position={"top-right"}/>
+            <Router>
+                <div className={"bg-slate-800 min-h-screen"}>
+                    <Header/>
+                    <Routes>
+                        <Route path="/" element={<MarketGrid/>}/>
+                        {/*<Route path="/market/:id" element={<MarketDetails />} />*/}
+                    </Routes>
+                </div>
+            </Router>
+        </>
     );
 }

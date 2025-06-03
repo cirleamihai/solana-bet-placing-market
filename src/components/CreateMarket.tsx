@@ -5,8 +5,8 @@ import {
     DialogTitle,
     DialogFooter
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Button} from "@/components/ui/button";
 import {
     Select,
     SelectContent,
@@ -15,26 +15,88 @@ import {
     SelectValue
 } from "@/components/ui/select";
 
-import { useState } from "react";
-import { marketTopics } from "@/lib/constants";
+import {PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY} from "@solana/web3.js";
+
+import {useState} from "react";
+import {marketTopics} from "@/lib/constants";
+import {useAnchorProgram} from "@/lib/anchor";
+import {toast} from "sonner";
+import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
+import {ensureFactory} from "@/blockchain/ensureFactory";
 
 interface Props {
     open: boolean;
     onClose: () => void;
 }
 
-export default function CreateMarketModal({ open, onClose }: Props) {
+
+export default function CreateMarketModal({open, onClose}: Props) {
     const [marketName, setMarketName] = useState("");
     const [selectedTopic, setSelectedTopic] = useState("");
+    const {program, wallet} = useAnchorProgram();
 
-    const handleSubmit = () => {
-        console.log("Market Name:", marketName);
-        console.log("Selected Topic:", selectedTopic);
+    const handleSubmit = async () => {
+        if (!program || !wallet?.publicKey || !marketName || !selectedTopic) {
+            toast.error("Please connect wallet and fill all fields.");
+            return;
+        }
+
+        try {
+            /* -------- 1. make sure factory exists -------- */
+            const factoryPda = await ensureFactory(wallet.publicKey, program);
+
+            /* -------- 2. fetch current counter ---------- */
+            // @ts-ignore
+            const factoryAcc = await program.account.marketFactory.fetch(factoryPda);
+            const index = factoryAcc.createdMarkets;          // u64 counter
+
+            /* -------- 3. derive all PDAs for this market -------- */
+            const [marketPda] = PublicKey.findProgramAddressSync(
+                [
+                    Buffer.from("market"),
+                    wallet.publicKey.toBuffer(),
+                    index.toArrayLike(Buffer, "le", 8)
+                ],
+                program.programId
+            );
+            const [yesMint] = PublicKey.findProgramAddressSync([Buffer.from("yes_mint"), marketPda.toBuffer()], program.programId);
+            const [noMint] = PublicKey.findProgramAddressSync([Buffer.from("no_mint"), marketPda.toBuffer()], program.programId);
+            const [lpShareMint] = PublicKey.findProgramAddressSync([Buffer.from("lp_share_mint"), marketPda.toBuffer()], program.programId);
+            const [vault] = PublicKey.findProgramAddressSync([Buffer.from("vault"), marketPda.toBuffer()], program.programId);
+
+            const USD_MINT = new PublicKey("YOUR_STABLE_TOKEN_MINT");
+
+            /* -------- 4. send transaction -------- */
+            await program.methods
+                .createNewMarket(/* oracle pubkey here */ wallet.publicKey)   // oracle param
+                .accounts({
+                    market: marketPda,
+                    yesMint,
+                    noMint,
+                    lpShareMint,
+                    usdMint: USD_MINT,
+                    marketFactory: factoryPda,
+                    vault,
+                    authority: wallet.publicKey,
+                    systemProgram: SystemProgram.programId,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                    rent: SYSVAR_RENT_PUBKEY,
+                })
+                .rpc();
+
+            toast.success("Market created 🎉");
+            onModalClose();
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to create market");
+        }
+
         onModalClose(); // You’ll replace this with actual logic
     };
 
     const onModalClose = () => {
         setSelectedTopic("");
+        setMarketName("");
         onClose();
     }
 
@@ -63,7 +125,7 @@ export default function CreateMarketModal({ open, onClose }: Props) {
                                 selectedTopic ? "[&>span]:text-white" : "[&>span]:text-zinc-400"
                             }`}
                         >
-                            <SelectValue placeholder="Select Topic" />
+                            <SelectValue placeholder="Select Topic"/>
                         </SelectTrigger>
 
                         <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
