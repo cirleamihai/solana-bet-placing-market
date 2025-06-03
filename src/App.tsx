@@ -9,8 +9,8 @@ import "./styles/globals.css";
 export default function App() {
     return (
         <Router>
-            <Header/>
             <div className={"bg-slate-800 min-h-screen"}>
+            <Header/>
                 <Routes>
                     <Route path="/" element={<MarketGrid/>}/>
                     {/*<Route path="/market/:id" element={<MarketDetails />} />*/}
