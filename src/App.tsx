@@ -6,7 +6,6 @@ import MarketList from "@/src/components/MarketList";
 import "./styles/globals.css";
 
 export default function App() {
-    console.log("Hey baby.")
     return (
         <Router>
             <NavBar />

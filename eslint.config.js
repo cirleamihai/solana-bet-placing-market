@@ -23,10 +23,7 @@ export default [
         sourceType: 'module',
       },
       globals: {
-        React: true,
-        document: true,
-        window: true,
-        __dirname: true,
+        ...globals.browser,
       }
     },
     settings: {
