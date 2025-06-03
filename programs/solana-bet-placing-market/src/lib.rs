@@ -19,6 +19,11 @@ pub mod solana_bet_placing_market {
         Ok(())
     }
 
+    pub fn bump_created_markets(ctx: Context<BumpCreatedMarkets>, new_value: u64) -> Result<()> {
+        ctx.accounts.market_factory.created_markets = new_value;
+        Ok(())
+    }
+
     pub fn create_new_market(ctx: Context<InitializeMarket>, oracle_key: Pubkey) -> Result<()> {
         let market = &mut ctx.accounts.market;
         let market_factory = &mut ctx.accounts.market_factory;
@@ -1006,6 +1011,16 @@ pub struct InitializeMarketFactory<'info> {
 
     /// The account that pays for the initialization.
     #[account(mut)]
+    pub authority: Signer<'info>,
+
+    /// Programs and sysvars.
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct BumpCreatedMarkets<'info> {
+    #[account(mut)]
+    pub market_factory: Account<'info, MarketFactory>,
     pub authority: Signer<'info>,
 
     /// Programs and sysvars.
