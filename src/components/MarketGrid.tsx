@@ -1,35 +1,38 @@
 // src/components/MarketGrid.tsx
 import { useEffect, useState } from "react";
 import { MarketCard } from "@/components/MarketCard";
-import { getAnchorProgram } from "@/lib/anchor";
+import { useAnchorProgram } from "@/lib/anchor";
 import { supabase } from "@/lib/supabase";
 import { GridLoader } from "react-spinners";
 
 interface MarketMetadata {
     market_pubkey: string;
-    question: string;
+    market_name: string;
 }
 
-export const MarketGrid = () => {
+export default function MarketGrid() {
     const [markets, setMarkets] = useState<any[]>([]);
     const [metadata, setMetadata] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
+    const {program} = useAnchorProgram();
 
     useEffect(() => {
         const fetchMarkets = async () => {
             try {
+                // @ts-ignore
                 const fetchedMarkets = await program.account.market.all();
+                console.log(program.account)
                 setMarkets(fetchedMarkets);
 
-                const pubkeys = fetchedMarkets.map((m) => m.publicKey.toBase58());
+                const pubkeys = fetchedMarkets.map((m: any) => m.publicKey.toBase58());
                 const { data } = await supabase
                     .from("market_metadata")
-                    .select("market_pubkey, question")
+                    .select("market_pubkey, market_name")
                     .in("market_pubkey", pubkeys);
 
                 const metaMap: Record<string, string> = {};
                 data?.forEach((entry) => {
-                    metaMap[entry.market_pubkey] = entry.question;
+                    metaMap[entry.market_pubkey] = entry.market_name;
                 });
 
                 setMetadata(metaMap);
@@ -53,25 +56,23 @@ export const MarketGrid = () => {
 
     return (
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {markets.map(({ account, publicKey }, idx) => {
-                const pubkeyStr = publicKey.toBase58();
+            {markets.map(({ account, publicKey }, i) => {
+                const keyStr   = publicKey.toBase58();
 
-                // Dummy volume for now
-                const totalVolume = parseFloat(account.volumeYes.toString() || "0") +
-                    parseFloat(account.volumeNo.toString() || "0");
-
-                const yesProb = Math.floor(
-                    (parseFloat(account.volumeYes.toString()) / (totalVolume || 1)) * 100
-                );
+                /* your on-chain struct has yes_liquidity / no_liquidity */
+                const yes = Number(account.yesLiquidity  ?? 0);
+                const no  = Number(account.noLiquidity   ?? 0);
+                const vol = yes + no;
+                const yesPct = vol ? Math.floor((yes / vol) * 100) : 50;
 
                 return (
                     <MarketCard
-                        key={pubkeyStr}
-                        marketPubkey={pubkeyStr}
-                        question={metadata[pubkeyStr] || `Market #${idx + 1}`}
-                        yesProbability={yesProb}
-                        noProbability={100 - yesProb}
-                        volume={`${totalVolume.toFixed(2)} tokens`}
+                        key={keyStr}
+                        marketPubkey   = {keyStr}
+                        question       = {metadata[keyStr] || `Market #${i + 1}`}
+                        yesProbability = {yesPct}
+                        noProbability  = {100 - yesPct}
+                        volume         = {`${vol.toLocaleString()} tokens`}
                     />
                 );
             })}

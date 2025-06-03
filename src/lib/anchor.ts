@@ -7,9 +7,9 @@ import {
     Idl, Wallet,
 } from "@coral-xyz/anchor";
 import idl from "@/idl/solana_bet_placing_market.json";
-import {PublicKey, Keypair} from "@solana/web3.js";
+import {Keypair} from "@solana/web3.js";
 
-export function getAnchorProgram() {
+export function useAnchorProgram() {
     const {connection} = useConnection();
     const wallet = useAnchorWallet();
 
