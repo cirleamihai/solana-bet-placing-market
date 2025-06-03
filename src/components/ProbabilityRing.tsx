@@ -1,4 +1,3 @@
-
 interface ProbabilityRingProps {
     /** 0-100 integer – will be clamped internally */
     value: number;
@@ -8,12 +7,12 @@ interface ProbabilityRingProps {
     stroke?: number;
 }
 
- // @ts-ignore
+// @ts-ignore
 function ProbabilityRing({
-                                            value,
-                                            size = 40,
-                                            stroke = 4,
-                                        }: ProbabilityRingProps) {
+                             value,
+                             size = 40,
+                             stroke = 4,
+                         }: ProbabilityRingProps) {
     const pct = Math.max(0, Math.min(100, value));
     const radius = (36 - stroke) / 2;     // fit nicely inside viewBox 0‒36
     const circumference = 2 * Math.PI * radius;

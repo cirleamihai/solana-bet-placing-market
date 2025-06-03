@@ -1,8 +1,8 @@
 // src/components/MarketCard.tsx
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ArrowDown, ArrowUp } from "lucide-react";
-import { Link } from "react-router-dom";
+import {Card, CardContent} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {ArrowDown, ArrowUp} from "lucide-react";
+import {Link} from "react-router-dom";
 import ProbabilityRing from "@/components/ProbabilityRing";
 
 interface MarketCardProps {
@@ -20,36 +20,45 @@ export const MarketCard = ({
                                yesProbability,
                                volume,
                            }: MarketCardProps) => (
-    <Card className="bg-[#2f4150] rounded-xl p-3 flex flex-col gap-3 shadow hover:shadow-lg transition-shadow">
-        {/* ─── Header ─────────────────────────────────────────────── */}
-        <div className="flex items-start gap-2">
-            {/* avatar / placeholder */}
+    <Card className="bg-[#2f4150] rounded-xl p-4 min-h-[170px] shadow-md hover:shadow-lg transition-shadow relative border-1 border-[#486279]">
+        <CardContent className="p-0 flex flex-col gap-4 h-full justify-between">
+            {/* ── Header ─────────────────────────────── */}
+            <div className="flex items-start justify-between">
+                <Link to={`/market/${marketPubkey}`} className="flex-1 pr-2">
+                    <h2 className="text-xl font-semibold text-white leading-snug hover:underline">
+                        {question}
+                    </h2>
 
-            {/* title */}
-            <Link to={`/market/${marketPubkey}`} className="flex-1">
-                <h2 className="text-sm font-semibold leading-snug line-clamp-2 hover:underline">
-                    {question}
-                </h2>
-            </Link>
+                </Link>
 
-            {/* chance ring */}
-            <ProbabilityRing value={yesProbability} />
-        </div>
+                {/* Ring pinned to top-right */}
+                <div className="absolute top-2 right-2">
+                    <ProbabilityRing value={yesProbability} size={50} stroke={4}/>
+                </div>
+            </div>
 
-        {/* ─── Action buttons ─────────────────────────────────────── */}
-        <div className="flex gap-2">
-            <Button className="bg-green-600/90 hover:bg-green-600 w-1/2 h-8 text-xs font-medium gap-1">
-                <ArrowUp className="w-3.5 h-3.5" />
-                Buy&nbsp;Yes
-            </Button>
+            {/* ── Buy Buttons ───────────────────────── */}
+            <div className="flex-col gap-2 mt-7">
 
-            <Button className="bg-red-600/90 hover:bg-red-600 w-1/2 h-8 text-xs font-medium gap-1">
-                <ArrowDown className="w-3.5 h-3.5" />
-                Buy&nbsp;No
-            </Button>
-        </div>
+                <div className="text-sm text-slate-300 font-medium flex gap-4 mt-1 mb-2.5 justify-between">
+                    <span>Yes: <span className="text-white">${yesProbability.toFixed(2)}</span></span>
+                    <span>No: <span className="text-white">${(100 - yesProbability).toFixed(2)}</span></span>
+                </div>
+                <div className={"flex gap-2 justify-between"}>
+                    <Button
+                        className="bg-[#2b5453] hover:bg-[#23b866] hover:text-white w-1/2 h-9 text-lg font-semibold text-[#27ae60] rounded-md">
+                        Buy Yes <ArrowUp className="w-4 h-4 ml-1"/>
+                    </Button>
 
-        {/* ─── Footer (volume etc.) ───────────────────────────────── */}
-        <div className="text-[11px] text-slate-400">{volume} Vol.</div>
+                    <Button
+                        className="bg-[#534250] hover:bg-[#c23333] hover:text-white w-1/2 h-9 text-lg font-semibold text-[#e34600] rounded-md">
+                        Buy No <ArrowDown className="w-4 h-4 ml-1"/>
+                    </Button>
+                </div>
+            </div>
+
+            {/* ── Volume Footer ─────────────────────── */}
+            <div className="text-xs text-slate-300">{volume} Vol.</div>
+        </CardContent>
     </Card>
 );

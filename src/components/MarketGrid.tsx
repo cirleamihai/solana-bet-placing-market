@@ -57,7 +57,7 @@ export default function MarketGrid() {
     return markets.length === 0 ? (
         <EmptyState/>
     ) : (
-        <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(240px,1fr))]">
+        <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(280px,1fr))] w-[58%] mx-auto mt-8">
             {markets.map(({account, publicKey}, i) => {
                 const keyStr = publicKey.toBase58();
 
