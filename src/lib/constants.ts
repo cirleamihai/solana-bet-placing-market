@@ -1,0 +1,1 @@
+export const marketTopics = ["Trending", "Politics", "Sports", "Crypto", "Tech", "World", "Other"];
