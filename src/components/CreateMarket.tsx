@@ -64,7 +64,7 @@ export default function CreateMarketModal({open, onClose}: Props) {
             const [lpShareMint] = PublicKey.findProgramAddressSync([Buffer.from("lp_share_mint"), marketPda.toBuffer()], program.programId);
             const [vault] = PublicKey.findProgramAddressSync([Buffer.from("vault"), marketPda.toBuffer()], program.programId);
 
-            const USD_MINT = new PublicKey("YOUR_STABLE_TOKEN_MINT");
+            const USD_MINT = new PublicKey("B2Zs7zCNeSWcu1bHkDUq6yRJYVwhwozLgvqDVLwYHe8Z");
 
             /* -------- 4. send transaction -------- */
             await program.methods
