@@ -1,16 +1,18 @@
 import React from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import NavBar from "./components/NavBar";
-import MarketList from "./components/MarketList";
-import MarketDetails from "./components/MarketDetails";
+import NavBar from "@/src/components/NavBar";
+import MarketList from "@/src/components/MarketList";
+// import MarketDetails from "@/src/components/MarketDetails";
+import "./styles/globals.css";
 
 export default function App() {
+    console.log("Hey baby.")
     return (
         <Router>
             <NavBar />
             <Routes>
                 <Route path="/" element={<MarketList />} />
-                <Route path="/market/:id" element={<MarketDetails />} />
+                {/*<Route path="/market/:id" element={<MarketDetails />} />*/}
             </Routes>
         </Router>
     );

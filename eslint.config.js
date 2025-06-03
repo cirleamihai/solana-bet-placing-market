@@ -22,6 +22,12 @@ export default [
         ecmaVersion: 'latest',
         sourceType: 'module',
       },
+      globals: {
+        React: true,
+        document: true,
+        window: true,
+        __dirname: true,
+      }
     },
     settings: {
       react: { version: 'detect' },
