@@ -14,7 +14,7 @@ export async function ensureFactory(authority: PublicKey, program: Program) {
     try {
         // @ts-ignore
         await program.account.marketFactory.fetch(factoryPda);
-        console.log("Market Factory PDA already exists:", factoryPda.createdMarkets.toString());
+        // console.log("Market Factory PDA already exists:", factoryPda.createdMarkets.toString());
         // already exists
         return factoryPda;
     } catch {

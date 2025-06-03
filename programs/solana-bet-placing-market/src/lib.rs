@@ -1064,6 +1064,7 @@ pub struct InitializeMarket<'info> {
     pub usd_mint: Account<'info, Mint>,
 
     /// The factory for the market.
+    #[account(mut)]
     pub market_factory: Account<'info, MarketFactory>,
 
     /// The vault account where the USD tokens are escrowed.
