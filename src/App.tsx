@@ -1,6 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import NavBar from "@/components/NavBar";
+import ConnectWalletButton from "@/components/ConnectWalletButton";
 import MarketGrid from "@/components/MarketGrid";
 import Header from "@/components/Header";
 // import MarketDetails from "@/src/components/MarketDetails";

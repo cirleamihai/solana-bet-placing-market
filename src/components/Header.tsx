@@ -2,6 +2,7 @@ import { Search, Settings, Bookmark, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { Link } from "react-router-dom";
+import ConnectWalletButton from "@/components/ConnectWalletButton";
 
 export default function Header() {
     return (
@@ -19,7 +20,7 @@ export default function Header() {
                         <Link to="#">Crypto</Link>
                         <Link to="#">Tech</Link>
                         <Link to="#">World</Link>
-                        <Link to="#">More</Link>
+                        <Link to="#">Other</Link>
                     </nav>
                 </div>
 
@@ -34,7 +35,7 @@ export default function Header() {
                             className="bg-transparent focus:outline-none text-sm w-full text-white"
                         />
                     </div>
-                    <WalletMultiButton className={"Hey"} />
+                    <ConnectWalletButton />
                 </div>
             </div>
         </header>

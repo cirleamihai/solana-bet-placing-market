@@ -1,6 +1,6 @@
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 
-export default function NavBar() {
+export default function ConnectWalletButton() {
     return (
         <nav>
             <WalletMultiButton />
