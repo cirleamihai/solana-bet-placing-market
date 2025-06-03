@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from "react";
-import {useMarketProgram} from "@/useMarketProgram";
+import {getAnchorProgram} from "@/lib/anchor";
 import {Link} from "react-router-dom";
 
 export default function MarketList() {
