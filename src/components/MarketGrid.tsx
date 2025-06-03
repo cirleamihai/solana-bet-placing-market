@@ -57,7 +57,7 @@ export default function MarketGrid() {
     return markets.length === 0 ? (
         <EmptyState/>
     ) : (
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(240px,1fr))]">
             {markets.map(({account, publicKey}, i) => {
                 const keyStr = publicKey.toBase58();
 
@@ -73,7 +73,6 @@ export default function MarketGrid() {
                         marketPubkey={keyStr}
                         question={metadata[keyStr] || `Market #${i + 1}`}
                         yesProbability={yesPct}
-                        noProbability={100 - yesPct}
                         volume={`${vol.toLocaleString()} tokens`}
                     />
                 );

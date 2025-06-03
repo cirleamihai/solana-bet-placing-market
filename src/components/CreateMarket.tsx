@@ -23,6 +23,7 @@ import {useAnchorProgram} from "@/lib/anchor";
 import {toast} from "sonner";
 import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
 import {ensureFactory} from "@/blockchain/ensureFactory";
+import BN from "bn.js";
 
 interface Props {
     open: boolean;
