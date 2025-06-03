@@ -1,16 +1,16 @@
-import { Search, Settings, Bookmark, Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import { Link } from "react-router-dom";
+import {Search, Settings, Bookmark, Bell} from "lucide-react";
+import {Button} from "@/components/ui/button";
+import {WalletMultiButton} from "@solana/wallet-adapter-react-ui";
+import {Link} from "react-router-dom";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 
 export default function Header() {
     return (
-        <header className="bg-zinc-900 text-white border-b border-zinc-800 shadow-sm px-4 py-3">
+        <header className="bg-slate-800 text-white shadow-sm px-4 py-5">
             <div className="max-w-7xl mx-auto flex items-center justify-between">
                 {/* Left: Logo and Nav */}
                 <div className="flex items-center gap-6">
-                    <Link to="/" className="text-xl font-bold tracking-tight">
+                    <Link to="/" className="text-3xl font-bold tracking-tight">
                         UBB Market
                     </Link>
                     <nav className="hidden md:flex gap-4 text-sm font-medium text-zinc-300">
@@ -26,18 +26,22 @@ export default function Header() {
 
                 {/* Right: Actions */}
                 <div className="flex items-center gap-4 ml-auto">
-
-                    <div className="hidden md:flex items-center gap-2 bg-zinc-800 px-3 py-1.5 rounded-full w-64">
-                        <Search className="w-4 h-4 text-zinc-400" />
+                    <div className="hidden md:flex items-center gap-2 bg-white px-3 py-1.5 rounded-full w-64">
+                        <Search className="w-6 h-6 text-zinc-800"/>
                         <input
                             type="text"
                             placeholder="Search markets"
-                            className="bg-transparent focus:outline-none text-sm w-full text-white"
+                            className="bg-transparent focus:outline-none text-sm w-full text-zinc-800"
                         />
                     </div>
-                    <ConnectWalletButton />
+                    <ConnectWalletButton/>
                 </div>
             </div>
+
+            <div className="mt-4">
+                <div className="border-b-[0.2px] border-gray-200"/>
+            </div>
         </header>
+
     );
 };
