@@ -1,0 +1,32 @@
+{
+  "name": "USD-UBB",
+  "symbol": "USD",
+  "description": "A stable coin meant to simulate USD currency.",
+  "image": "https://images.seeklogo.com/logo-png/14/1/ubb-cluj-logo-png_seeklogo-143958.png",
+  "external_url": "https://www.cs.ubbcluj.ro/en/",
+  "attributes": [
+    {
+      "trait_type": "Type",
+      "value": "Stablecoin"
+    },
+    {
+      "trait_type": "Use Case",
+      "value": "UBB Prediction Market"
+    }
+  ],
+  "properties": {
+    "files": [
+      {
+        "uri": "https://images.seeklogo.com/logo-png/14/1/ubb-cluj-logo-png_seeklogo-143958.png",
+        "type": "image/png"
+      }
+    ],
+    "category": "image",
+    "creators": [
+      {
+        "address": "GbTH2vqmXfiLLXSPWmzCece2FGUMxVsPnW5tqfXeFFWQ",
+        "share": 1000000
+      }
+    ]
+  }
+}
