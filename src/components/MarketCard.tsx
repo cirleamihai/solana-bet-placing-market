@@ -20,7 +20,7 @@ export const MarketCard = ({
                                yesProbability,
                                volume,
                            }: MarketCardProps) => (
-    <Card className="bg-[#2f4150] rounded-xl p-4 min-h-[170px] shadow-md hover:shadow-lg transition-shadow relative border-1 border-[#486279]">
+    <Card className="bg-[#2f4150] rounded-xl p-4 min-h-[170px] shadow-md hover:shadow-lg transition-all transform-gpu hover:scale-[1.02]  relative border border-[#486279] hover:border-[#64b5f6] hover:bg-[#3b5266]">
         <CardContent className="p-0 flex flex-col gap-4 h-full justify-between">
             {/* ── Header ─────────────────────────────── */}
             <div className="flex items-start justify-between">
@@ -46,12 +46,12 @@ export const MarketCard = ({
                 </div>
                 <div className={"flex gap-2 justify-between"}>
                     <Button
-                        className="bg-[#2b5453] hover:bg-[#23b866] hover:text-white w-1/2 h-9 text-lg font-semibold text-[#27ae60] rounded-md">
+                        className="bg-[#2b5453] hover:bg-[#23b866] hover:text-white cursor-pointer w-1/2 h-9 text-lg font-semibold text-[#27ae60] rounded-md">
                         Buy Yes <ArrowUp className="w-4 h-4 ml-1"/>
                     </Button>
 
                     <Button
-                        className="bg-[#534250] hover:bg-[#c23333] hover:text-white w-1/2 h-9 text-lg font-semibold text-[#e34600] rounded-md">
+                        className="bg-[#534250] hover:bg-[#c23333] hover:text-white cursor-pointer w-1/2 h-9 text-lg font-semibold text-[#e34600] rounded-md">
                         Buy No <ArrowDown className="w-4 h-4 ml-1"/>
                     </Button>
                 </div>
