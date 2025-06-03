@@ -7,6 +7,7 @@ import {
     Idl, Wallet,
 } from "@coral-xyz/anchor";
 import idl from "@/idl/solana_bet_placing_market.json";
+import {PublicKey, Keypair} from "@solana/web3.js";
 
 export function getAnchorProgram() {
     const {connection} = useConnection();
@@ -17,9 +18,11 @@ export function getAnchorProgram() {
             return new AnchorProvider(connection, wallet, {});
         }
 
+        const dummyKeypair = Keypair.generate()
         // If there is no wallet defined, return read-only dummy provider
         const dummyWallet: Wallet = {
-            publicKey: null,
+            publicKey: dummyKeypair.publicKey,
+            payer: dummyKeypair,
             signTransaction: async (tx) => tx,
             signAllTransactions: async (txs) => txs,
         }
