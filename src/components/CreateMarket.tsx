@@ -35,6 +35,7 @@ interface Props {
 export default function CreateMarketModal({open, onClose}: Props) {
     const [marketName, setMarketName] = useState("");
     const [selectedTopic, setSelectedTopic] = useState("");
+    const [submitting, setSubmitting] = useState(false);
     const {program, wallet} = useAnchorProgram();
 
     const handleSubmit = async () => {
@@ -42,6 +43,7 @@ export default function CreateMarketModal({open, onClose}: Props) {
             toast.error("Please connect wallet and fill all fields.");
             return;
         }
+        setSubmitting(true);
 
         try {
             /* -------- 1. make sure factory exists -------- */
@@ -107,6 +109,8 @@ export default function CreateMarketModal({open, onClose}: Props) {
         } catch (e) {
             console.error(e);
             toast.error("Failed to create market");
+        } finally {
+            setSubmitting(false);
         }
 
         onModalClose(); // You’ll replace this with actual logic
@@ -165,12 +169,14 @@ export default function CreateMarketModal({open, onClose}: Props) {
                         variant="secondary"
                         onClick={onModalClose}
                         className="bg-zinc-700 text-white hover:bg-zinc-600"
+                        disabled={submitting}
                     >
                         Cancel
                     </Button>
                     <Button
                         onClick={handleSubmit}
                         className="bg-lime-600 hover:bg-lime-700 text-white"
+                        disabled={submitting || !marketName || !selectedTopic}
                     >
                         Submit
                     </Button>
