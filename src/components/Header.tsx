@@ -5,6 +5,9 @@ import {Link} from "react-router-dom";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import {marketTopics} from "@/lib/constants";
 import CreateMarketModal from "@/components/CreateMarket";
+import {useAnchorWallet} from "@solana/wallet-adapter-react";
+import {useAnchorProgram} from "@/lib/anchor";
+import {toast} from "sonner";
 
 interface HeaderProps {
     searchQuery?: string;
@@ -17,10 +20,11 @@ export default function Header({
                                    },
                                }: HeaderProps) {
     const [modalOpen, setModalOpen] = useState(false);
+    const {wallet} = useAnchorProgram()
 
     return (
         <header className="bg-slate-800 text-white shadow-sm px-4 py-5">
-            <div className="max-w-2/3 mx-auto flex items-center justify-between tracking-ti">
+            <div className="max-w-5/6 mx-auto flex items-center justify-between tracking-ti">
                 {/* Left: Logo and Nav */}
                 <div className="flex items-center gap-6">
                     <Link to="/" className="text-3xl font-bold tracking-tight">
@@ -28,7 +32,7 @@ export default function Header({
                     </Link>
                     <nav className="hidden md:flex gap-4 mt-2 text-sm font-medium text-zinc-300">
                         {marketTopics.map((topic, index) => (
-                            <Link to="#" key={index} className="hover:text-white">{topic}</Link>
+                            <Link to={`/markets/${topic.toLocaleLowerCase()}`} key={index} className="hover:text-white">{topic}</Link>
                         ))}
                     </nav>
                 </div>
@@ -50,6 +54,10 @@ export default function Header({
                         className="bg-lime-600 hover:bg-lime-700 cursor-pointer text-white font-semibold px-6 py-2 h-12.5 rounded text-lg flex items-center justify-center"
                         onClick={(e) => {
                             e.preventDefault();
+                            if (!wallet?.publicKey) {
+                                toast.error("Please connect your wallet to create a market.");
+                                return;
+                            }
                             setModalOpen(true);
                         }}
                     >

@@ -6,11 +6,7 @@ import {supabase} from "@/lib/supabase";
 import {GridLoader} from "react-spinners";
 import EmptyState from "@/components/EmptyState";
 import {useDebounce} from "@/lib/useDebounce";
-
-interface MarketMetadata {
-    market_pubkey: string;
-    market_name: string;
-}
+import {useParams} from "react-router-dom";
 
 interface MarketGridProps {
     searchQuery: string;
@@ -22,6 +18,7 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
     const [metadata, setMetadata] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
     const {program} = useAnchorProgram();
+    const {market_category} = useParams();
 
     const debouncedMarketName = useDebounce(searchQuery, 500);
 
@@ -31,7 +28,6 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
             try {
                 // @ts-ignore
                 const fetchedMarkets = await program.account.market.all();
-                setMarkets(fetchedMarkets);
 
                 const pubkeys = fetchedMarkets.map((m: any) => m.publicKey.toBase58());
                 const query = supabase
@@ -43,6 +39,10 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
                     query.ilike("market_name", `%${debouncedMarketName}%`);
                 }
 
+                if (market_category) {
+                    query.ilike("market_category", market_category);
+                }
+
                 const {data} = await query;
 
                 const metaMap: Record<string, string> = {};
@@ -50,6 +50,12 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
                     metaMap[entry.market_pubkey] = entry.market_name;
                 });
 
+                const filtered_markets = fetchedMarkets.filter((market: any) => {
+                    const key = market.publicKey.toBase58();
+                    return metaMap.hasOwnProperty(key);
+                });
+
+                setMarkets(filtered_markets);
                 setMetadata(metaMap);
             } catch (err) {
                 console.error("Error fetching markets or metadata:", err);
@@ -59,7 +65,7 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
         };
 
         fetchMarkets();
-    }, [debouncedMarketName, program]);
+    }, [debouncedMarketName, program, market_category]);
 
     if (loading) {
         return (
@@ -72,30 +78,26 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
     return markets.length === 0 ? (
         <EmptyState/>
     ) : (
-        <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(280px,auto))] w-[58%] mx-auto mt-8">
-            {markets.filter((market) => {
-                const key = market.publicKey.toBase58();
-                return metadata.hasOwnProperty(key);
-            })
-                .map(({account, publicKey}, i) => {
-                    const keyStr = publicKey.toBase58();
+        <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(280px,auto))] w-[70%] mx-auto mt-8">
+            {markets.map(({account, publicKey}, i) => {
+                const keyStr = publicKey.toBase58();
 
-                    /* your on-chain struct has yes_liquidity / no_liquidity */
-                    const yes = Number(account.yesLiquidity ?? 0);
-                    const no = Number(account.noLiquidity ?? 0);
-                    const vol = yes + no;
-                    const yesPct = vol ? Math.floor((yes / vol) * 100) : 50;
+                /* your on-chain struct has yes_liquidity / no_liquidity */
+                const yes = Number(account.yesLiquidity ?? 0);
+                const no = Number(account.noLiquidity ?? 0);
+                const vol = yes + no;
+                const yesPct = vol ? Math.floor((yes / vol) * 100) : 50;
 
-                    return (
-                        <MarketCard
-                            key={keyStr}
-                            marketPubkey={keyStr}
-                            question={metadata[keyStr] || `Market #${i + 1}`}
-                            yesProbability={yesPct}
-                            volume={`$${vol.toLocaleString()}`}
-                        />
-                    );
-                })}
+                return (
+                    <MarketCard
+                        key={keyStr}
+                        marketPubkey={keyStr}
+                        question={metadata[keyStr] || `Market #${i + 1}`}
+                        yesProbability={yesPct}
+                        volume={`$${vol.toLocaleString()}`}
+                    />
+                );
+            })}
         </div>
     )
 

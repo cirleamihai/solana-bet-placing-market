@@ -21,6 +21,7 @@ export default function App() {
                     />
                     <Routes>
                         <Route path="/" element={<MarketGrid searchQuery={searchQuery}/>}/>
+                        <Route path="/markets/:market_category" element={<MarketGrid searchQuery={searchQuery}/>}/>
                         {/*<Route path="/market/:id" element={<MarketDetails />} />*/}
                     </Routes>
                 </div>
