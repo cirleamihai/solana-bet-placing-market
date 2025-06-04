@@ -5,30 +5,45 @@ import {useAnchorProgram} from "@/lib/anchor";
 import {supabase} from "@/lib/supabase";
 import {GridLoader} from "react-spinners";
 import EmptyState from "@/components/EmptyState";
+import {useDebounce} from "@/lib/useDebounce";
 
 interface MarketMetadata {
     market_pubkey: string;
     market_name: string;
 }
 
-export default function MarketGrid() {
+interface MarketGridProps {
+    searchQuery: string;
+}
+
+
+export default function MarketGrid({searchQuery}: MarketGridProps) {
     const [markets, setMarkets] = useState<any[]>([]);
     const [metadata, setMetadata] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
     const {program} = useAnchorProgram();
 
+    const debouncedMarketName = useDebounce(searchQuery, 500);
+
     useEffect(() => {
         const fetchMarkets = async () => {
+            setLoading(true);
             try {
                 // @ts-ignore
                 const fetchedMarkets = await program.account.market.all();
                 setMarkets(fetchedMarkets);
 
                 const pubkeys = fetchedMarkets.map((m: any) => m.publicKey.toBase58());
-                const {data} = await supabase
+                const query = supabase
                     .from("market_metadata")
                     .select("market_pubkey, market_name")
                     .in("market_pubkey", pubkeys);
+
+                if (debouncedMarketName) {
+                    query.ilike("market_name", `%${debouncedMarketName}%`);
+                }
+
+                const {data} = await query;
 
                 const metaMap: Record<string, string> = {};
                 data?.forEach((entry) => {
@@ -44,7 +59,7 @@ export default function MarketGrid() {
         };
 
         fetchMarkets();
-    }, []);
+    }, [debouncedMarketName, program]);
 
     if (loading) {
         return (

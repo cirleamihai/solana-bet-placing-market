@@ -6,7 +6,16 @@ import ConnectWalletButton from "@/components/ConnectWalletButton";
 import {marketTopics} from "@/lib/constants";
 import CreateMarketModal from "@/components/CreateMarket";
 
-export default function Header() {
+interface HeaderProps {
+    searchQuery?: string;
+    setSearchQuery?: (query: string) => void;
+}
+
+export default function Header({
+                                   searchQuery = "",
+                                   setSearchQuery = () => {
+                                   },
+                               }: HeaderProps) {
     const [modalOpen, setModalOpen] = useState(false);
 
     return (
@@ -31,8 +40,10 @@ export default function Header() {
                         <Search className="w-5 h-5 text-zinc-800"/>
                         <input
                             type="text"
+                            value={searchQuery}
                             placeholder="Search markets"
                             className="bg-transparent focus:outline-none text-sm w-full text-zinc-800"
+                            onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
                     <Button
@@ -54,7 +65,7 @@ export default function Header() {
                 <div className="border-b-[0.2px] border-gray-600"/>
             </div>
 
-            <CreateMarketModal open={modalOpen} onClose={() => setModalOpen(false)} />
+            <CreateMarketModal open={modalOpen} onClose={() => setModalOpen(false)}/>
         </header>
 
     );

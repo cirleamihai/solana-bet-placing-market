@@ -8,14 +8,19 @@ import "./styles/globals.css";
 import {Toaster} from "sonner";
 
 export default function App() {
+    const [searchQuery, setSearchQuery] = React.useState("");
+
     return (
         <>
             <Toaster position={"top-right"}/>
             <Router>
                 <div className={"bg-slate-800 min-h-screen"}>
-                    <Header/>
+                    <Header
+                        searchQuery={searchQuery}
+                        setSearchQuery={setSearchQuery}
+                    />
                     <Routes>
-                        <Route path="/" element={<MarketGrid/>}/>
+                        <Route path="/" element={<MarketGrid searchQuery={searchQuery}/>}/>
                         {/*<Route path="/market/:id" element={<MarketDetails />} />*/}
                     </Routes>
                 </div>
