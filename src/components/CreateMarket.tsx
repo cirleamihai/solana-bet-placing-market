@@ -3,7 +3,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogFooter
+    DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
 import {Input} from "@/components/ui/input";
 import {Button} from "@/components/ui/button";
@@ -18,7 +18,7 @@ import {
 import {PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY} from "@solana/web3.js";
 
 import {useState} from "react";
-import {marketTopics} from "@/lib/constants";
+import {marketTopics, USD_MINT} from "@/lib/constants";
 import {useAnchorProgram} from "@/lib/anchor";
 import {toast} from "sonner";
 import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
@@ -67,8 +67,6 @@ export default function CreateMarketModal({open, onClose}: Props) {
             const [noMint] = PublicKey.findProgramAddressSync([Buffer.from("no_mint"), marketPda.toBuffer()], program.programId);
             const [lpShareMint] = PublicKey.findProgramAddressSync([Buffer.from("lp_share_mint"), marketPda.toBuffer()], program.programId);
             const [vault] = PublicKey.findProgramAddressSync([Buffer.from("vault"), marketPda.toBuffer()], program.programId);
-
-            const USD_MINT = new PublicKey("B2Zs7zCNeSWcu1bHkDUq6yRJYVwhwozLgvqDVLwYHe8Z");
 
             /* -------- 4. send transaction -------- */
             await program.methods
@@ -131,6 +129,9 @@ export default function CreateMarketModal({open, onClose}: Props) {
                     <DialogTitle className="text-xl font-semibold text-white">
                         Create a New Market
                     </DialogTitle>
+                    <DialogDescription className="text-zinc-400 text-sm">
+                        Choose a topic and name for your new prediction market.
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 mt-4">
@@ -164,23 +165,31 @@ export default function CreateMarketModal({open, onClose}: Props) {
                     </Select>
                 </div>
 
-                <DialogFooter className="mt-6 flex justify-end gap-2">
-                    <Button
-                        variant="secondary"
-                        onClick={onModalClose}
-                        className="bg-zinc-700 text-white hover:bg-zinc-600"
-                        disabled={submitting}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleSubmit}
-                        className="bg-lime-600 hover:bg-lime-700 text-white"
-                        disabled={submitting || !marketName || !selectedTopic}
-                    >
-                        Submit
-                    </Button>
-                </DialogFooter>
+                {/* Add this below the footer */}
+                <div className="space-y-3">
+                    <p className="text-sm text-red-400 flex items-center gap-2 justify-center">
+                        <span className="text-yellow-400">⚠️</span>
+                        Creating a new market will require SOL for transaction fees.
+                    </p>
+
+                    <DialogFooter className="flex justify-end gap-2">
+                        <Button
+                            variant="secondary"
+                            onClick={onModalClose}
+                            className="bg-zinc-700 text-white hover:bg-zinc-600"
+                            disabled={submitting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSubmit}
+                            className="bg-lime-600 hover:bg-lime-700 text-white"
+                            disabled={submitting || !marketName || !selectedTopic}
+                        >
+                            Submit
+                        </Button>
+                    </DialogFooter>
+                </div>
             </DialogContent>
         </Dialog>
     );
