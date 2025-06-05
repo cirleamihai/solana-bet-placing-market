@@ -68,7 +68,13 @@ export default function CreateMarketModal({open, onClose}: Props) {
             const [lpShareMint] = PublicKey.findProgramAddressSync([Buffer.from("lp_share_mint"), marketPda.toBuffer()], program.programId);
             const [vault] = PublicKey.findProgramAddressSync([Buffer.from("vault"), marketPda.toBuffer()], program.programId);
 
-            /* -------- 4. send transaction -------- */
+            // Pool related accounts
+            const [liquidityPoolAccount] = PublicKey.findProgramAddressSync([Buffer.from("pool"), marketPda.toBuffer()], program.programId)
+            const [liquidityYesPoolAccount] = PublicKey.findProgramAddressSync([Buffer.from("yes_liquidity_pool"), marketPda.toBuffer()], program.programId)
+            const [liquidityNoPoolAccount] = PublicKey.findProgramAddressSync([Buffer.from("no_liquidity_pool"), marketPda.toBuffer()], program.programId)
+
+
+            /* -------- 4. send transaction to create market-------- */
             await program.methods
                 .createNewMarket(/* oracle pubkey here */ wallet.publicKey)   // oracle param
                 .accounts({
@@ -85,6 +91,21 @@ export default function CreateMarketModal({open, onClose}: Props) {
                     rent: SYSVAR_RENT_PUBKEY,
                 })
                 .rpc();
+
+            /* -------- 5. send transaction to initiate liquidity pool-------- */
+            await program.methods
+                .initializePool()
+                .accounts({
+                    pool: liquidityPoolAccount,
+                    liquidityYesTokensAccount: liquidityYesPoolAccount,
+                    liquidityNoTokensAccount: liquidityNoPoolAccount,
+                    market: marketPda,
+                    authority: wallet.publicKey,
+                    yesMint,
+                    noMint,
+                    systemProgram: SystemProgram.programId,
+                    tokenProgram: TOKEN_PROGRAM_ID
+                }).rpc();
 
             // Also update the supabase metadata
             const {data, error} = await supabase

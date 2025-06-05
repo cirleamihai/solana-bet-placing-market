@@ -90,7 +90,7 @@ export default function Header({
                             </div>
 
                             {/* Formatted amount */}
-                            <span className="ml-3">
+                            <span className="ml-3 text-[#27ae60]">
                               {new Intl.NumberFormat(undefined, {
                                   style: 'currency',
                                   currency: 'USD',

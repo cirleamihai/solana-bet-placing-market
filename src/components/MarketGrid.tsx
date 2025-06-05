@@ -7,6 +7,7 @@ import {GridLoader} from "react-spinners";
 import EmptyState from "@/components/EmptyState";
 import {useDebounce} from "@/lib/useDebounce";
 import {useParams} from "react-router-dom";
+import {PublicKey} from "@solana/web3.js";
 
 interface MarketGridProps {
     searchQuery: string;
@@ -16,6 +17,7 @@ interface MarketGridProps {
 export default function MarketGrid({searchQuery}: MarketGridProps) {
     const [markets, setMarkets] = useState<any[]>([]);
     const [metadata, setMetadata] = useState<Record<string, string>>({});
+    const [marketsPool, setMarketsPool] = useState<Record<string, any>>({});
     const [loading, setLoading] = useState(true);
     const {program} = useAnchorProgram();
     const {market_category} = useParams();
@@ -55,6 +57,30 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
                     return metaMap.hasOwnProperty(key);
                 });
 
+                // Now that we know which markets to keep, we can get the markets pool information
+                const marketsPools = await Promise.all(
+                    filtered_markets.map(async (market: any) => {
+                        // We are going to compute the pool pda first
+                        const [poolPda] = PublicKey.findProgramAddressSync(
+                            [Buffer.from("pool"), market.publicKey.toBuffer()],
+                            program.programId
+                        );
+
+                        let poolAccount: any;
+
+                        try {
+                            // @ts-ignore
+                            poolAccount = await program.account.marketPool.fetch(poolPda);
+                        } catch (error) {
+                            // @ts-ignore
+                            console.log(`Failed to fetch pool for market ${market.publicKey.toBase58()}:`, error.message);
+                            poolAccount = null; // Skip this market if pool fetch fails
+                        }
+
+                        return [market.publicKey.toBase58(), poolAccount];
+                    })
+                );
+                setMarketsPool(Object.fromEntries(marketsPools));
                 setMarkets(filtered_markets);
                 setMetadata(metaMap);
             } catch (err) {
@@ -79,22 +105,24 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
         <EmptyState/>
     ) : (
         <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(280px,auto))] w-[70%] mx-auto mt-8">
-            {markets.map(({account, publicKey}, i) => {
+            {markets.map(({_account, publicKey}, i) => {
+                const marketPool = marketsPool[publicKey.toBase58()];
                 const keyStr = publicKey.toBase58();
 
                 /* your on-chain struct has yes_liquidity / no_liquidity */
-                const yes = Number(account.yesLiquidity ?? 0);
-                const no = Number(account.noLiquidity ?? 0);
-                const vol = yes + no;
-                const yesPct = vol ? Math.floor((yes / vol) * 100) : 50;
+                const yes = Number(marketPool?.yesLiquidity ?? 0);  // We are going to compute no based on yes
+                const no = Number(marketPool?.noLiquidity ?? 0);
+                const yesAndNoSummedUp = yes + no;
+                const totalMarketVolume = Number(marketPool?.usdCollateral ?? 0);
+                const yesPrice = yesAndNoSummedUp ? Math.floor((yes / yesAndNoSummedUp) * 100) : 50;
 
                 return (
                     <MarketCard
                         key={keyStr}
                         marketPubkey={keyStr}
                         question={metadata[keyStr] || `Market #${i + 1}`}
-                        yesProbability={yesPct}
-                        volume={`$${vol.toLocaleString()}`}
+                        yesProbability={yesPrice}
+                        volume={`$${totalMarketVolume.toLocaleString()}`}
                     />
                 );
             })}
