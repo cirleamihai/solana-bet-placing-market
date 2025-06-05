@@ -40,8 +40,8 @@ export const MarketCard = ({
             {/* ── Buy Buttons ───────────────────────── */}
             <div className="flex-col gap-2 mt-auto">
                 <div className="text-sm text-slate-300 font-medium flex gap-4 mt-1 mb-2.5 justify-between">
-                    <span>Yes: <span className="text-white">${yesProbability.toFixed(2)}</span></span>
-                    <span>No: <span className="text-white">${(100 - yesProbability).toFixed(2)}</span></span>
+                    <span>Yes: <span className="text-white">${(yesProbability / 100).toFixed(2)}</span></span>
+                    <span>No: <span className="text-white">${((100 - yesProbability) / 100).toFixed(2)}</span></span>
                 </div>
                 <div className={"flex gap-2 justify-between"}>
                     <Button
