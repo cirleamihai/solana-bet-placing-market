@@ -5,7 +5,7 @@ import ConnectWalletButton from "@/components/ConnectWalletButton";
 import {computePotentialShareProfit} from "@/blockchain/computePotentialShareProfit";
 import {PublicKey, Transaction} from "@solana/web3.js";
 import BN from "bn.js";
-import {getAssociatedTokenAddress, TOKEN_PROGRAM_ID} from "@solana/spl-token";
+import {TOKEN_PROGRAM_ID} from "@solana/spl-token";
 import {USD_MINT} from "@/lib/constants";
 import {toast} from "sonner";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
@@ -81,15 +81,19 @@ export default function MarketTradeSection({
 
         const ataInstructions: any[] = [];
         const selectedMint = selectedOutcome === "yes" ? market.yesMint : market.noMint;
-        const userUsdAccount = await createAssociatedTokenAccounts(USD_MINT, wallet.publicKey, wallet, connection, ataInstructions);
-        const userOutcomeMintAccount = await createAssociatedTokenAccounts(selectedMint, wallet.publicKey, wallet, connection, ataInstructions);
+        const userUsdAccount = (await createAssociatedTokenAccounts(USD_MINT, wallet.publicKey, wallet, connection, ataInstructions)).ata;
+        const {ata, account} = await createAssociatedTokenAccounts(selectedMint, wallet.publicKey, wallet, connection, ataInstructions);
+        const userOutcomeMintAccount = ata;
 
         try {
             const tx = new Transaction();
             ataInstructions.length > 0 && tx.add(...ataInstructions);
 
             const instruction = await program.methods
-                .purchaseOutcomeShares(new BN(amount * 10 ** 9), selectedMint) // Assuming input is in SOL units
+                .purchaseOutcomeShares(
+                    new BN(amount * 10 ** 9),
+                    selectedMint
+                ) // Assuming input is in SOL units
                 .accounts({
                     market: marketKey,
                     pool: poolKey,

@@ -10,8 +10,9 @@ export const createAssociatedTokenAccounts = async (
     ataInstructions: any[]
 ) => {
     const ata = await getAssociatedTokenAddress(mint, walletKey, true);
+    let account = null;
     try {
-        await getAccount(connection, ata);
+        account = await getAccount(connection, ata);
     } catch (e) {
         ataInstructions.push(
             createAssociatedTokenAccountInstruction(
@@ -22,5 +23,8 @@ export const createAssociatedTokenAccounts = async (
             )
         );
     }
-    return ata;
+    return {
+        ata,
+        account
+    };
 }

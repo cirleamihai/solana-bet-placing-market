@@ -40,13 +40,13 @@ export default function MarketDetails() {
     const handleInitialLiquidity = async () => {
         if (!wallet?.publicKey || !marketPubkey || !market) return;
         const ataInstructions: any[] = []; // Instructions for creating associated token accounts
-        const userUsd = await createAssociatedTokenAccounts(USD_MINT, wallet.publicKey, wallet, connection, ataInstructions);
+        const userUsd = (await createAssociatedTokenAccounts(USD_MINT, wallet.publicKey, wallet, connection, ataInstructions)).ata;
         // @ts-ignore
-        const userYes = await createAssociatedTokenAccounts(market.yesMint, wallet.publicKey, wallet, connection, ataInstructions);
+        const userYes = (await createAssociatedTokenAccounts(market.yesMint, wallet.publicKey, wallet, connection, ataInstructions)).ata;
         // @ts-ignore
-        const userNo = await createAssociatedTokenAccounts(market.noMint, wallet.publicKey, wallet, connection, ataInstructions);
+        const userNo = (await createAssociatedTokenAccounts(market.noMint, wallet.publicKey, wallet, connection, ataInstructions)).ata;
         // @ts-ignore
-        const userLp = await createAssociatedTokenAccounts(market.lpShareMint, wallet.publicKey, wallet, connection, ataInstructions);
+        const userLp = (await createAssociatedTokenAccounts(market.lpShareMint, wallet.publicKey, wallet, connection, ataInstructions)).ata;
 
         // Get the market public key
         const marketKey = new PublicKey(marketPubkey);
