@@ -14,7 +14,7 @@ export default function MarketTradeSection({
                                                marketPool,
                                            }: TradeInfo) {
     const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">("yes");
-    const [maxAmountReached, setMaxAmountReached] = useState(false);
+    const [_maxAmountReached, setMaxAmountReached] = useState(false);
     const [amount, setAmount] = useState(0);
 
     const {wallet} = useAnchorProgram(); // Assuming you have a hook to get the wallet context

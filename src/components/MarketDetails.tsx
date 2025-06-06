@@ -5,9 +5,10 @@ import {useAnchorProgram} from "@/lib/anchor";
 import {supabase} from "@/lib/supabase";
 import {PublicKey} from "@solana/web3.js";
 import {GridLoader} from "react-spinners";
-import ProbabilityRing from "@/components/ProbabilityRing";
 import MarketPriceChart from "@/components/MarketPriceChart";
 import MarketTradeSection from "@/components/MarketTradeSection";
+import { getAssociatedTokenAddress } from "@solana/spl-token";
+import { BN } from "@coral-xyz/anchor";
 
 interface ChartPoint {
     t: number;          // milliseconds since epoch
@@ -15,16 +16,22 @@ interface ChartPoint {
 }
 
 export default function MarketDetails() {
-    const {program} = useAnchorProgram();
+    const {program, wallet} = useAnchorProgram();
     const {marketPubkey} = useParams();          // ← from route
     const [loading, setLoading] = useState(true);
     const [question, setQuestion] = useState<string>("");
     const [createdAt, setCreatedAt] = useState<string>("");
-    const [yesProb, setYesProb] = useState<number>(50);
+    const [_yesProb, setYesProb] = useState<number>(50);
     const [volume, setVolume] = useState<number>(0);
+    const [liquidityEmptyModal, setLiquidityEmptyModal] = useState(false);
+    const [depositAmount, setDepositAmount] = useState<number>(0);
     const [somethingWrong, setSomethingWrong] = useState<string | null>(null);
     const [poolAccount, setPoolAccount] = useState<any>(null); // Replace 'any' with the actual type if known
     const [chartData, setChartData] = useState<ChartPoint[]>([]);
+
+    const handleInitialLiquidity = async () => {
+
+    }
 
     useEffect(() => {
         if (!marketPubkey) return;
@@ -46,6 +53,16 @@ export default function MarketDetails() {
                 );
                 // @ts-ignore
                 const poolAcct = await program.account.marketPool.fetch(poolPda);
+                if (!poolAcct) {
+                    setSomethingWrong(`Pool not found for market ${marketPubkey}.`);
+                    return;
+                }
+                if (poolAcct.liquidityShares.toNumber() === 0) {
+                    setLiquidityEmptyModal(true);
+                } else {
+                    setLiquidityEmptyModal(false);
+                }
+
                 setPoolAccount(poolAcct);
 
                 const yes = Number(poolAcct?.yesLiquidity ?? 0);
@@ -160,6 +177,42 @@ export default function MarketDetails() {
 
                 <MarketPriceChart points={chartData}/>
             </div>
+            {liquidityEmptyModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/60">
+                    <div className="bg-[#1f2937] p-6 rounded-2xl shadow-xl w-full max-w-md border border-slate-600 text-white">
+                        <h2 className="text-2xl font-semibold mb-4">No Liquidity Found</h2>
+                        <p className="text-red-300 mb-6">
+                            This market currently has no liquidity. To enable trading, please add initial liquidity to the pool.
+                        </p>
+
+                        <label className="block mb-2 text-sm font-medium text-slate-400">
+                            Deposit Amount (USD-UBB)
+                        </label>
+                        <input
+                            type="number"
+                            placeholder="Enter amount..."
+                            className="w-full px-4 py-2 rounded-md bg-slate-800 border border-slate-600 text-white focus:outline-none mb-6"
+                            value={depositAmount}
+                            onChange={(e) => setDepositAmount(Number(e.target.value))}
+                        />
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                className="px-4 py-2 rounded-md bg-slate-700 hover:bg-slate-600 text-sm text-white"
+                                onClick={() => setLiquidityEmptyModal(false)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="px-4 py-2 rounded-md bg-green-600 hover:bg-green-700 text-sm text-white font-semibold"
+                                onClick={handleInitialLiquidity}
+                            >
+                                Add Liquidity
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }
