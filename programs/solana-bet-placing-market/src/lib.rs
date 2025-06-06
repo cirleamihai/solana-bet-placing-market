@@ -1045,7 +1045,7 @@ pub struct InitializeMarket<'info> {
         seeds = [b"yes_mint", market.key().as_ref()],
         bump,
         payer = authority,
-        mint::decimals = 6,
+        mint::decimals = 9,
         mint::authority = market,
         mint::freeze_authority = market,
     )]
@@ -1057,7 +1057,7 @@ pub struct InitializeMarket<'info> {
         seeds = [b"no_mint", market.key().as_ref()],
         bump,
         payer = authority,
-        mint::decimals = 6,
+        mint::decimals = 9,
         mint::authority = market,
         mint::freeze_authority = market,
     )]
@@ -1069,7 +1069,7 @@ pub struct InitializeMarket<'info> {
         seeds = [b"lp_share_mint", market.key().as_ref()],
         bump,
         payer = authority,
-        mint::decimals = 6,
+        mint::decimals = 9,
         mint::authority = market,
         mint::freeze_authority = market,
     )]
