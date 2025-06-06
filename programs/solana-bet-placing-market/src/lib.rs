@@ -1207,7 +1207,7 @@ pub struct PoolLiquidity<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(purchased_outcome_mint_pubkey: Pubkey)]
+#[instruction(usd_amount: u64, purchased_outcome_mint_pubkey: Pubkey)]
 pub struct PurchaseOutcomeShares<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
