@@ -1,14 +1,18 @@
-// src/pages/MarketPage.tsx
 import {useEffect, useState} from "react";
-import {useParams} from "react-router-dom";
+import {useNavigate, useParams} from "react-router-dom";
 import {useAnchorProgram} from "@/lib/anchor";
 import {supabase} from "@/lib/supabase";
-import {PublicKey} from "@solana/web3.js";
+import {PublicKey, Transaction} from "@solana/web3.js";
+import { AnchorProvider } from "@coral-xyz/anchor";
 import {GridLoader} from "react-spinners";
 import MarketPriceChart from "@/components/MarketPriceChart";
 import MarketTradeSection from "@/components/MarketTradeSection";
-import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
+import {USD_MINT} from "@/lib/constants";
+import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
+import {toast} from "sonner";
+import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
+import {Button} from "@/components/ui/button";
 
 interface ChartPoint {
     t: number;          // milliseconds since epoch
@@ -16,22 +20,114 @@ interface ChartPoint {
 }
 
 export default function MarketDetails() {
-    const {program, wallet} = useAnchorProgram();
     const {marketPubkey} = useParams();          // ← from route
+    const navigate = useNavigate(); // for closing modals
+
+    const {program, wallet, connection} = useAnchorProgram();
+    const [market, setMarket] = useState<PublicKey | null>(null);
     const [loading, setLoading] = useState(true);
     const [question, setQuestion] = useState<string>("");
     const [createdAt, setCreatedAt] = useState<string>("");
     const [_yesProb, setYesProb] = useState<number>(50);
     const [volume, setVolume] = useState<number>(0);
     const [liquidityEmptyModal, setLiquidityEmptyModal] = useState(false);
-    const [depositAmount, setDepositAmount] = useState<number>(0);
+    const [depositAmount, setDepositAmount] = useState<string>("");
     const [somethingWrong, setSomethingWrong] = useState<string | null>(null);
     const [poolAccount, setPoolAccount] = useState<any>(null); // Replace 'any' with the actual type if known
     const [chartData, setChartData] = useState<ChartPoint[]>([]);
+    const [submitting, setSubmitting] = useState(false);
 
     const handleInitialLiquidity = async () => {
+        if (!wallet?.publicKey || !marketPubkey || !market) return;
+        const ataInstructions: any[] = []; // Instructions for creating associated token accounts
+        const userUsd = await createAssociatedTokenAccounts(USD_MINT,  wallet.publicKey, wallet, connection, ataInstructions);
+        // @ts-ignore
+        const userYes = await createAssociatedTokenAccounts(market.yesMint, wallet.publicKey, wallet, connection, ataInstructions);
+        // @ts-ignore
+        const userNo = await createAssociatedTokenAccounts(market.noMint, wallet.publicKey, wallet, connection, ataInstructions);
+        // @ts-ignore
+        const userLp = await createAssociatedTokenAccounts(market.lpShareMint, wallet.publicKey, wallet, connection, ataInstructions);
 
+        // Get the market public key
+        const marketKey = new PublicKey(marketPubkey);
+
+        const [poolPda] = PublicKey.findProgramAddressSync(
+            [Buffer.from("pool"), marketKey.toBuffer()],
+            program.programId
+        );
+
+        const [vaultPda] = PublicKey.findProgramAddressSync(
+            [Buffer.from("vault"), marketKey.toBuffer()],
+            program.programId
+        );
+
+        const [yesLiquidityPda] = PublicKey.findProgramAddressSync(
+            [Buffer.from("yes_liquidity_pool"), marketKey.toBuffer()],
+            program.programId
+        );
+
+        const [noLiquidityPda] = PublicKey.findProgramAddressSync(
+            [Buffer.from("no_liquidity_pool"), marketKey.toBuffer()],
+            program.programId
+        );
+
+        try {
+            const tx = new Transaction();
+            tx.add(...ataInstructions);
+
+            const ix = await program.methods
+                .addLiquidity(new BN(Number(depositAmount) * 10 ** 9))
+                .accounts({
+                    pool: poolPda,
+                    market: marketKey,
+                    vault: vaultPda,
+                    // @ts-ignore
+                    yesMint: market.yesMint,
+                    // @ts-ignore
+                    noMint: market.noMint,
+                    // @ts-ignore
+                    lpShareMint: market.lpShareMint,
+                    userUsdAccount: userUsd,
+                    userYesAccount: userYes,
+                    userNoAccount: userNo,
+                    userLpShareAccount: userLp,
+                    liquidityYesTokensAccount: yesLiquidityPda,
+                    liquidityNoTokensAccount: noLiquidityPda,
+                    user: wallet.publicKey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            tx.add(ix);
+
+            // @ts-ignore
+            const provider = program.provider as AnchorProvider;
+            const sig = await provider.sendAndConfirm(tx);
+
+            toast.success("Liquidity added successfully!");
+            setLiquidityEmptyModal(false);
+        } catch (err) {
+            console.error("Failed to add liquidity:", err);
+            toast.error("Liquidity deposit failed.");
+        }
     }
+
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let val = e.target.value.replace(/\s/g, "").replace(",", ".");
+
+        // Allow only digits and one decimal point
+        if (/^\d*\.?\d{0,9}$/.test(val) || val === "") {
+            setDepositAmount(val);
+        }
+    };
+
+    const formatted = depositAmount
+        ? Number(depositAmount).toLocaleString("", {
+            minimumFractionDigits: depositAmount.includes(".") ? depositAmount.split(".")[1].length : 0,
+            useGrouping: true,
+        })
+        : "";
 
     useEffect(() => {
         if (!marketPubkey) return;
@@ -45,6 +141,7 @@ export default function MarketDetails() {
                 if (!marketAcct) {
                     setSomethingWrong(`Market not found. Please check the public key. ${pubkey}}`);
                 }
+                setMarket(marketAcct);
 
                 // Getting the pool PDA for this market
                 const [poolPda] = PublicKey.findProgramAddressSync(
@@ -67,7 +164,7 @@ export default function MarketDetails() {
 
                 const yes = Number(poolAcct?.yesLiquidity ?? 0);
                 const no = Number(poolAcct?.noLiquidity ?? 0);
-                const totalVol = Number(poolAcct?.usdCollateral ?? 0);
+                const totalVol = Number(poolAcct?.usdCollateral ?? 0) / 10 ** 9;
                 const prob = yes + no ? Math.floor((yes / (yes + no)) * 100) : 50;
 
                 setYesProb(prob);
@@ -143,7 +240,7 @@ export default function MarketDetails() {
 
                     <span className="text-md text-slate-300">
                         Volume &nbsp; <span
-                        className="font-medium text-white"> ${new Intl.NumberFormat().format(volume)}
+                        className="font-medium text-white"> ${volume.toLocaleString()}
                         </span>
                     </span>
                 </div>
@@ -189,26 +286,58 @@ export default function MarketDetails() {
                             Deposit Amount (USD-UBB)
                         </label>
                         <input
-                            type="number"
-                            placeholder="Enter amount..."
+                            type="text"
+                            inputMode="decimal"
                             className="w-full px-4 py-2 rounded-md bg-slate-800 border border-slate-600 text-white focus:outline-none mb-6"
-                            value={depositAmount}
-                            onChange={(e) => setDepositAmount(Number(e.target.value))}
+                            value={formatted}
+                            onChange={handleChange}
                         />
 
                         <div className="flex justify-end gap-3">
                             <button
-                                className="px-4 py-2 rounded-md bg-slate-700 hover:bg-slate-600 text-sm text-white"
-                                onClick={() => setLiquidityEmptyModal(false)}
+                                className="px-4 py-2 rounded-md cursor-pointer bg-slate-700 hover:bg-slate-600 text-sm text-white"
+                                onClick={() => {
+                                    navigate("/"); // Close modal by navigating back
+                                }}
                             >
-                                Cancel
+                                Back
                             </button>
-                            <button
-                                className="px-4 py-2 rounded-md bg-green-600 hover:bg-green-700 text-sm text-white font-semibold"
-                                onClick={handleInitialLiquidity}
+                            <Button
+                                onClick={() => {
+                                    setSubmitting(true);
+                                    handleInitialLiquidity().then();
+                                }}
+                                className="px-4 py-2 rounded-md cursor-pointer bg-green-600 hover:bg-green-700 text-sm text-white font-semibold"
+                                disabled={Number(depositAmount) === 0 || submitting}
                             >
-                                Add Liquidity
-                            </button>
+                                {submitting ? (
+                                    <>
+                                        <svg
+                                            className="animate-spin h-4 w-4 text-white"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"
+                                            ></path>
+                                        </svg>
+                                        Submitting...
+                                    </>
+                                ) : (
+                                    "Submit"
+                                )}
+                            </Button>
                         </div>
                     </div>
                 </div>

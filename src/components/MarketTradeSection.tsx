@@ -102,7 +102,7 @@ export default function MarketTradeSection({
                     <input
                         type="text"
                         className="bg-transparent w-64 text-3xl font-semibold text-slate-300 focus:outline-none"
-                        value={amount.toLocaleString("fr-FR")}
+                        value={amount.toLocaleString("")}
                         onChange={(e) => handleAmountTyping(e)}
                     />
                     <div className="flex gap-2">
@@ -144,7 +144,7 @@ export default function MarketTradeSection({
                                 <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
                                     Expected Profit
                                 </div>
-                                <div className="text-xl font-bold text-green-400">${expectedProfit.toLocaleString("fr-FR")}</div>
+                                <div className="text-xl font-bold text-green-400">${expectedProfit.toLocaleString("")}</div>
                             </div>
 
                             <div
@@ -152,7 +152,7 @@ export default function MarketTradeSection({
                                 <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
                                     Shares to Purchase
                                 </div>
-                                <div className="text-xl font-bold text-sky-400 ml-auto">{totalShares.toLocaleString("fr-FR")} SHARES</div>
+                                <div className="text-xl font-bold text-sky-400 ml-auto">{totalShares.toLocaleString("")} SHARES</div>
                             </div>
                         </div>
                         <Button

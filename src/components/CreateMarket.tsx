@@ -146,6 +146,7 @@ export default function CreateMarketModal({open, onClose}: Props) {
     const onModalClose = () => {
         setSelectedTopic("");
         setMarketName("");
+        setSubmitting(false);
         onClose();
     }
 

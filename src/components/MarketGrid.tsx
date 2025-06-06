@@ -121,7 +121,7 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
                         marketPubkey={keyStr}
                         question={metadata[keyStr] || `Market #${i + 1}`}
                         yesProbability={yesPrice}
-                        volume={`$${totalMarketVolume.toLocaleString()}`}
+                        volume={`$${(totalMarketVolume / 10 ** 9).toLocaleString()}`}
                     />
                 );
             })}
