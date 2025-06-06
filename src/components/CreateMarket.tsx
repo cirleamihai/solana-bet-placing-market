@@ -15,7 +15,7 @@ import {
     SelectValue
 } from "@/components/ui/select";
 
-import {PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY} from "@solana/web3.js";
+import {PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction} from "@solana/web3.js";
 
 import {useState} from "react";
 import {marketTopics, USD_MINT} from "@/lib/constants";
@@ -25,6 +25,7 @@ import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
 import {ensureFactory} from "@/blockchain/ensureFactory";
 import BN from "bn.js";
 import {supabase} from "@/lib/supabase";
+import {AnchorProvider} from "@coral-xyz/anchor";
 
 interface Props {
     open: boolean;
@@ -75,7 +76,9 @@ export default function CreateMarketModal({open, onClose}: Props) {
 
 
             /* -------- 4. send transaction to create market-------- */
-            await program.methods
+            const tx = new Transaction();
+
+            const create_market_instruction = await program.methods
                 .createNewMarket(/* oracle pubkey here */ wallet.publicKey)   // oracle param
                 .accounts({
                     market: marketPda,
@@ -90,10 +93,10 @@ export default function CreateMarketModal({open, onClose}: Props) {
                     tokenProgram: TOKEN_PROGRAM_ID,
                     rent: SYSVAR_RENT_PUBKEY,
                 })
-                .rpc();
+                .instruction();
 
             /* -------- 5. send transaction to initiate liquidity pool-------- */
-            await program.methods
+            const initialize_pool_instruction = await program.methods
                 .initializePool()
                 .accounts({
                     pool: liquidityPoolAccount,
@@ -105,7 +108,12 @@ export default function CreateMarketModal({open, onClose}: Props) {
                     noMint,
                     systemProgram: SystemProgram.programId,
                     tokenProgram: TOKEN_PROGRAM_ID
-                }).rpc();
+                }).instruction();
+            tx.add(create_market_instruction, initialize_pool_instruction);
+            tx.feePayer = wallet.publicKey;
+
+            const provider = program.provider as AnchorProvider;
+            const _sig = await provider.sendAndConfirm(tx);
 
             // Also update the supabase metadata
             const {data, error} = await supabase
@@ -204,10 +212,36 @@ export default function CreateMarketModal({open, onClose}: Props) {
                         </Button>
                         <Button
                             onClick={handleSubmit}
-                            className="bg-lime-600 hover:bg-lime-700 text-white"
+                            className="bg-lime-600 hover:bg-lime-700 text-white flex items-center gap-2"
                             disabled={submitting || !marketName || !selectedTopic}
                         >
-                            Submit
+                            {submitting ? (
+                                <>
+                                    <svg
+                                        className="animate-spin h-4 w-4 text-white"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            className="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            strokeWidth="4"
+                                        ></circle>
+                                        <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"
+                                        ></path>
+                                    </svg>
+                                    Creating...
+                                </>
+                            ) : (
+                                "Submit"
+                            )}
                         </Button>
                     </DialogFooter>
                 </div>
