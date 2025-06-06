@@ -113,7 +113,7 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
                 const no = Number(marketPool?.noLiquidity ?? 0);
                 const yesAndNoSummedUp = yes + no;
                 const totalMarketVolume = Number(marketPool?.usdCollateral ?? 0);
-                const yesPrice = yesAndNoSummedUp ? Math.floor((yes / yesAndNoSummedUp) * 100) : 50;
+                const yesPrice = yesAndNoSummedUp ? Math.floor((no / yesAndNoSummedUp) * 100) : 50;
 
                 return (
                     <MarketCard
