@@ -123,7 +123,7 @@ export default function MarketDetails() {
     };
 
     const formatted = depositAmount
-        ? Number(depositAmount).toLocaleString("", {
+        ? Number(depositAmount).toLocaleString("en-US", {
             minimumFractionDigits: depositAmount.includes(".") ? depositAmount.split(".")[1].length : 0,
             useGrouping: true,
         })

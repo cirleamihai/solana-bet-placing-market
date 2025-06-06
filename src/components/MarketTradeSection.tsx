@@ -35,7 +35,7 @@ export default function MarketTradeSection({
     const [reloadShares, setReloadShares] = useState(0);
 
     // @ts-ignore
-    let MAX_AMOUNT = (marketPool.usdCollateral / 10 ** 9) ?? CONST_MAX_AMOUNT;
+    let MAX_AMOUNT = CONST_MAX_AMOUNT;
 
     const handleAddAmount = (value: number) => {
         if (amount + value < MAX_AMOUNT) {
@@ -52,6 +52,7 @@ export default function MarketTradeSection({
             setAmount(value ? Number(value) : 0); // Convert to number or reset to 0
             setMaxAmountReached(false);
         } else {
+            setAmount(MAX_AMOUNT); // Set to max if input exceeds
             setMaxAmountReached(true);
         }
     }
@@ -212,7 +213,7 @@ export default function MarketTradeSection({
                     <input
                         type="text"
                         className="bg-transparent w-64 text-3xl font-semibold text-slate-300 focus:outline-none"
-                        value={amount.toLocaleString("")}
+                        value={amount.toLocaleString()}
                         onChange={(e) => handleAmountTyping(e)}
                     />
                     <div className="flex gap-2">
@@ -255,7 +256,7 @@ export default function MarketTradeSection({
                                     Expected Profit
                                 </div>
                                 <div
-                                    className="text-xl font-bold text-green-400">${expectedProfit.toLocaleString("")}</div>
+                                    className="text-xl font-bold text-green-400">${expectedProfit.toLocaleString()}</div>
                             </div>
 
                             <div
@@ -264,7 +265,7 @@ export default function MarketTradeSection({
                                     Shares to Purchase
                                 </div>
                                 <div
-                                    className="text-xl font-bold text-sky-400 ml-auto">{totalShares.toLocaleString("")} SHARES
+                                    className="text-xl font-bold text-sky-400 ml-auto">{totalShares.toLocaleString()} SHARES
                                 </div>
                             </div>
                         </div>
