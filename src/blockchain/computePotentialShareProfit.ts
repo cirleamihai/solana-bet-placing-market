@@ -4,7 +4,8 @@ export const computePotentialShareProfit = (
     purchasesYes: boolean,
     purchasedAmount: number,
 ) => {
-    if (yesLiquidity <= 0 || noLiquidity <= 0) {
+    console.log(yesLiquidity, noLiquidity)
+    if (yesLiquidity <= 0 || noLiquidity <= 0 || purchasedAmount <= 0) {
         return 0; // No liquidity means no profit can be made
     }
 

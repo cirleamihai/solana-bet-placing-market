@@ -1,11 +1,11 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {Button} from "@/components/ui/button";
 import {useAnchorProgram} from "@/lib/anchor";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import {computePotentialShareProfit} from "@/blockchain/computePotentialShareProfit";
 import {PublicKey, Transaction} from "@solana/web3.js";
 import BN from "bn.js";
-import {TOKEN_PROGRAM_ID} from "@solana/spl-token";
+import {getAssociatedTokenAddress, TOKEN_PROGRAM_ID} from "@solana/spl-token";
 import {USD_MINT} from "@/lib/constants";
 import {toast} from "sonner";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
@@ -29,6 +29,10 @@ export default function MarketTradeSection({
     const [_maxAmountReached, setMaxAmountReached] = useState(false);
     const [amount, setAmount] = useState(0);
     const [submitting, setSubmitting] = useState(false);
+    const [purchased, setPurchased] = useState(false);
+    const [yesSharesOwned, setYesSharesOwned] = useState(0);
+    const [noSharesOwned, setNoSharesOwned] = useState(0);
+    const [reloadShares, setReloadShares] = useState(0);
 
     // @ts-ignore
     let MAX_AMOUNT = (marketPool.usdCollateral / 10 ** 9) ?? CONST_MAX_AMOUNT;
@@ -61,12 +65,14 @@ export default function MarketTradeSection({
     const noPrice = noLiquidity ? (yesLiquidity / (yesLiquidity + noLiquidity)).toFixed(2) : 0.50.toFixed(2);
 
     // Compute expected profit
-    const expectedProfit = computePotentialShareProfit(
-        yesLiquidity,
-        noLiquidity,
+    let expectedProfit = computePotentialShareProfit(
+        yesLiquidity / 10 ** 9,
+        noLiquidity / 10 ** 9,
         selectedOutcome === "yes",
         amount
     );
+
+    expectedProfit = expectedProfit < 0 ? 0 : expectedProfit; // Ensure profit is not negative
 
     // Compute total shares as amount + expected profit
     const totalShares = amount + expectedProfit;
@@ -82,7 +88,10 @@ export default function MarketTradeSection({
         const ataInstructions: any[] = [];
         const selectedMint = selectedOutcome === "yes" ? market.yesMint : market.noMint;
         const userUsdAccount = (await createAssociatedTokenAccounts(USD_MINT, wallet.publicKey, wallet, connection, ataInstructions)).ata;
-        const {ata, account} = await createAssociatedTokenAccounts(selectedMint, wallet.publicKey, wallet, connection, ataInstructions);
+        const {
+            ata,
+            account
+        } = await createAssociatedTokenAccounts(selectedMint, wallet.publicKey, wallet, connection, ataInstructions);
         const userOutcomeMintAccount = ata;
 
         try {
@@ -115,6 +124,9 @@ export default function MarketTradeSection({
             const _sig = await provider.sendAndConfirm(tx);
 
             toast.success("Successfully purchased shares!");
+            setPurchased(true);
+            setReloadShares((prev) => prev + 1); // Trigger reload of shares
+            setTimeout(() => setPurchased(false), 2500);
         } catch (err) {
             console.error("Purchase failed:", err);
             toast.error("Purchase failed.");
@@ -123,6 +135,36 @@ export default function MarketTradeSection({
         }
 
     }
+
+    const getOwnedShares = async () => {
+        const yesATA = await getAssociatedTokenAddress(market.yesMint, wallet?.publicKey as PublicKey);
+        const noATA = await getAssociatedTokenAddress(market.noMint, wallet?.publicKey as PublicKey);
+
+        try {
+            const yesAccount = await connection.getTokenAccountBalance(yesATA);
+            const noAccount = await connection.getTokenAccountBalance(noATA);
+            return {
+                // @ts-ignore
+                yesShares: Number(yesAccount.value.amount) / 10 ** 9, // Convert from lamports to shares
+                // @ts-ignore
+                noShares: Number(noAccount.value.amount) / 10 ** 9, // Convert from lamports to shares
+            };
+        } catch (error) {
+            toast.error("Failed to fetch owned shares:");
+            return {yesShares: 0, noShares: 0};
+        }
+    }
+
+    useEffect(() => {
+        const loadShares = async () => {
+            if (!wallet?.publicKey) return;
+            const { yesShares, noShares } = await getOwnedShares(); // ← your function
+            setYesSharesOwned(yesShares);
+            setNoSharesOwned(noShares);
+        };
+
+        loadShares();
+    }, [reloadShares]);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12 w-full  mx-auto">
@@ -231,10 +273,23 @@ export default function MarketTradeSection({
                                 setSubmitting(true);
                                 purchaseOutcomeShares().then();
                             }}
-                            className="w-full h-12 mt-5 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white text-xl font-semibold py-3 rounded-md"
-                            disabled={Number(amount) === 0 || submitting}
+                            className={`w-full h-12 mt-5 cursor-pointer text-white text-xl font-semibold py-3 rounded-md transition-all duration-300 ${purchased ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}
+                            disabled={Number(amount) === 0 || submitting || purchased}
                         >
-                            {submitting ? (
+                            {purchased ? (
+                                <div className="flex items-center justify-center gap-2">
+                                    <svg
+                                        className="h-5 w-5 text-white"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth={3}
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    Purchased!
+                                </div>
+                            ) : submitting ? (
                                 <>
                                     <svg
                                         className="animate-spin h-4 w-4 text-white"
@@ -286,30 +341,36 @@ export default function MarketTradeSection({
                     </ul>
                 </div>
 
-                <div className="rounded-xl bg-[#1f2937] text-white p-6 h-full shadow-md">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
-                        <div className="bg-[#2a3646] rounded-lg p-4 shadow-inner border border-slate-700">
-                            <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">
-                                Money Invested
+                {wallet?.publicKey && (
+                    <div className="rounded-xl bg-[#1f2937] text-white p-6 h-full shadow-md">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+                            <div className="bg-[#2a3646] rounded-lg p-4 shadow-inner border border-slate-700">
+                                <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">
+                                    Money Invested
+                                </div>
+                                <div className="text-2xl font-semibold text-yellow-400">$123.45</div>
                             </div>
-                            <div className="text-2xl font-semibold text-yellow-400">$123.45</div>
-                        </div>
 
-                        <div className="bg-[#2a3646] rounded-lg p-4 shadow-inner border border-slate-700">
-                            <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">
-                                Shares Owned
+                            <div className="bg-[#2a3646] rounded-lg p-4 shadow-inner border border-slate-700">
+                                <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">
+                                    Shares Owned
+                                </div>
+                                <div className="text-xl font-semibold text-sky-300 flex flex-col sm:flex-row sm:justify-center gap-2">
+                                    <span className="text-green-400">{yesSharesOwned ? yesSharesOwned.toLocaleString() : "0"} Yes</span>
+                                    <span className="text-slate-500D">|</span>
+                                    <span className="text-red-400">{noSharesOwned ? noSharesOwned.toLocaleString() : "0"} No</span>
+                                </div>
                             </div>
-                            <div className="text-2xl font-semibold text-sky-400">150</div>
-                        </div>
 
-                        <div className="bg-[#2a3646] rounded-lg p-4 shadow-inner border border-slate-700">
-                            <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">
-                                Profit / Loss
+                            <div className="bg-[#2a3646] rounded-lg p-4 shadow-inner border border-slate-700">
+                                <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">
+                                    Profit / Loss
+                                </div>
+                                <div className={`text-2xl font-semibold `}>+$23.67</div>
                             </div>
-                            <div className={`text-2xl font-semibold `}>+$23.67</div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );
