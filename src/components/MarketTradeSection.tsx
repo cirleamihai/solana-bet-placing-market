@@ -4,7 +4,7 @@ import {Button} from "@/components/ui/button";
 import {useAnchorProgram} from "@/lib/anchor";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 
-const MAX_AMOUNT = 100_000_000; // 10 million
+const MAX_AMOUNT = 100_000_000; // 100 million
 
 export default function MarketTradeSection() {
     const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">("yes");
@@ -112,7 +112,28 @@ export default function MarketTradeSection() {
                     <div className={"w-full [&_*]:w-full [&_*]:justify-center"}>
                         <ConnectWalletButton/>
                     </div>
-                ) : (<></>)}
+                ) : (
+                    <div className="flex flex-col">
+                        <div className="flex gap-6 justify-between">
+                            <div className="bg-[#2f3e4e] px-5 py-3 rounded-xl shadow-inner border border-slate-700">
+                                <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
+                                    Expected Profit
+                                </div>
+                                <div className="text-xl font-bold text-green-400">$12.20</div>
+                            </div>
+
+                            <div className="bg-[#2f3e4e] px-5 py-3 rounded-xl shadow-inner border border-slate-700 flex flex-col">
+                                <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
+                                    Shares to Purchase
+                                </div>
+                                <div className="text-xl font-bold text-sky-400 ml-auto">0 SHARES</div>
+                            </div>
+                        </div>
+                        <Button className="w-full h-12 mt-5 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white text-xl font-semibold py-3 rounded-md">
+                            Purchase
+                        </Button>
+                    </div>
+                )}
             </div>
 
             {/* ── History / Order Book ─────────────────── */}
