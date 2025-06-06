@@ -1,12 +1,18 @@
-// src/components/MarketTradeSection.tsx
 import {useState} from "react";
 import {Button} from "@/components/ui/button";
 import {useAnchorProgram} from "@/lib/anchor";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
+import {computePotentialShareProfit} from "@/blockchain/computePotentialShareProfit";
 
 const MAX_AMOUNT = 100_000_000; // 100 million
 
-export default function MarketTradeSection() {
+interface TradeInfo {
+    marketPool: object,
+}
+
+export default function MarketTradeSection({
+                                               marketPool,
+                                           }: TradeInfo) {
     const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">("yes");
     const [maxAmountReached, setMaxAmountReached] = useState(false);
     const [amount, setAmount] = useState(0);
@@ -31,6 +37,25 @@ export default function MarketTradeSection() {
             setMaxAmountReached(true);
         }
     }
+
+    // Convert BN to numbers (if needed)
+    // @ts-ignore
+    const yesLiquidity = marketPool.yesLiquidity?.toNumber?.() ?? 0;
+    // @ts-ignore
+    const noLiquidity = marketPool.noLiquidity?.toNumber?.() ?? 0;
+    const yesPrice = yesLiquidity ? (noLiquidity / (yesLiquidity + noLiquidity)).toFixed(2) : 0.50.toFixed(2);
+    const noPrice = noLiquidity ? (yesLiquidity / (yesLiquidity + noLiquidity)).toFixed(2) : 0.50.toFixed(2);
+
+    // Compute expected profit
+    const expectedProfit = computePotentialShareProfit(
+        yesLiquidity,
+        noLiquidity,
+        selectedOutcome === "yes",
+        amount
+    );
+
+    // Compute total shares as amount + expected profit
+    const totalShares = amount + expectedProfit;
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12 w-full mx-auto">
@@ -58,7 +83,7 @@ export default function MarketTradeSection() {
                         }`}
                         onClick={() => setSelectedOutcome("yes")}
                     >
-                        Yes 15¢
+                        Yes ${yesPrice}
                     </button>
                     <button
                         className={`flex-1 py-3 rounded-md text-center font-semibold text-lg ml-2 cursor-pointer ${
@@ -68,7 +93,7 @@ export default function MarketTradeSection() {
                         }`}
                         onClick={() => setSelectedOutcome("no")}
                     >
-                        No 86¢
+                        No ${noPrice}
                     </button>
                 </div>
 
@@ -119,17 +144,19 @@ export default function MarketTradeSection() {
                                 <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
                                     Expected Profit
                                 </div>
-                                <div className="text-xl font-bold text-green-400">$12.20</div>
+                                <div className="text-xl font-bold text-green-400">${expectedProfit.toLocaleString("fr-FR")}</div>
                             </div>
 
-                            <div className="bg-[#2f3e4e] px-5 py-3 rounded-xl shadow-inner border border-slate-700 flex flex-col">
+                            <div
+                                className="bg-[#2f3e4e] px-5 py-3 rounded-xl shadow-inner border border-slate-700 flex flex-col">
                                 <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
                                     Shares to Purchase
                                 </div>
-                                <div className="text-xl font-bold text-sky-400 ml-auto">0 SHARES</div>
+                                <div className="text-xl font-bold text-sky-400 ml-auto">{totalShares.toLocaleString("fr-FR")} SHARES</div>
                             </div>
                         </div>
-                        <Button className="w-full h-12 mt-5 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white text-xl font-semibold py-3 rounded-md">
+                        <Button
+                            className="w-full h-12 mt-5 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white text-xl font-semibold py-3 rounded-md">
                             Purchase
                         </Button>
                     </div>

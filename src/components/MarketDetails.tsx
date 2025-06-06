@@ -23,6 +23,7 @@ export default function MarketDetails() {
     const [yesProb, setYesProb] = useState<number>(50);
     const [volume, setVolume] = useState<number>(0);
     const [somethingWrong, setSomethingWrong] = useState<string | null>(null);
+    const [poolAccount, setPoolAccount] = useState<any>(null); // Replace 'any' with the actual type if known
     const [chartData, setChartData] = useState<ChartPoint[]>([]);
 
     useEffect(() => {
@@ -45,8 +46,7 @@ export default function MarketDetails() {
                 );
                 // @ts-ignore
                 const poolAcct = await program.account.marketPool.fetch(poolPda);
-
-                console.log(poolAcct);
+                setPoolAccount(poolAcct);
 
                 const yes = Number(poolAcct?.yesLiquidity ?? 0);
                 const no = Number(poolAcct?.noLiquidity ?? 0);
@@ -134,7 +134,7 @@ export default function MarketDetails() {
 
             {/* placeholder for future book / actions */}
             <div className={"mb-5"}>
-                <MarketTradeSection/>
+                <MarketTradeSection marketPool={poolAccount}/>
             </div>
 
             {/* ── Price history chart ─────────────────── */}
