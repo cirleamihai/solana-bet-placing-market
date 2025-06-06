@@ -3,11 +3,11 @@ import {useNavigate, useParams} from "react-router-dom";
 import {useAnchorProgram} from "@/lib/anchor";
 import {supabase} from "@/lib/supabase";
 import {PublicKey, Transaction} from "@solana/web3.js";
-import { AnchorProvider } from "@coral-xyz/anchor";
+import {AnchorProvider} from "@coral-xyz/anchor";
 import {GridLoader} from "react-spinners";
 import MarketPriceChart from "@/components/MarketPriceChart";
 import MarketTradeSection from "@/components/MarketTradeSection";
-import { BN } from "@coral-xyz/anchor";
+import {BN} from "@coral-xyz/anchor";
 import {USD_MINT} from "@/lib/constants";
 import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
 import {toast} from "sonner";
@@ -24,7 +24,7 @@ export default function MarketDetails() {
     const navigate = useNavigate(); // for closing modals
 
     const {program, wallet, connection} = useAnchorProgram();
-    const [market, setMarket] = useState<PublicKey | null>(null);
+    const [market, setMarket] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [question, setQuestion] = useState<string>("");
     const [createdAt, setCreatedAt] = useState<string>("");
@@ -40,7 +40,7 @@ export default function MarketDetails() {
     const handleInitialLiquidity = async () => {
         if (!wallet?.publicKey || !marketPubkey || !market) return;
         const ataInstructions: any[] = []; // Instructions for creating associated token accounts
-        const userUsd = await createAssociatedTokenAccounts(USD_MINT,  wallet.publicKey, wallet, connection, ataInstructions);
+        const userUsd = await createAssociatedTokenAccounts(USD_MINT, wallet.publicKey, wallet, connection, ataInstructions);
         // @ts-ignore
         const userYes = await createAssociatedTokenAccounts(market.yesMint, wallet.publicKey, wallet, connection, ataInstructions);
         // @ts-ignore
@@ -73,7 +73,7 @@ export default function MarketDetails() {
 
         try {
             const tx = new Transaction();
-            tx.add(...ataInstructions);
+            ataInstructions.length > 0 && tx.add(...ataInstructions);
 
             const ix = await program.methods
                 .addLiquidity(new BN(Number(depositAmount) * 10 ** 9))
@@ -102,7 +102,7 @@ export default function MarketDetails() {
 
             // @ts-ignore
             const provider = program.provider as AnchorProvider;
-            const sig = await provider.sendAndConfirm(tx);
+            const _sig = await provider.sendAndConfirm(tx);
 
             toast.success("Liquidity added successfully!");
             setLiquidityEmptyModal(false);
@@ -248,7 +248,11 @@ export default function MarketDetails() {
 
             {/* placeholder for future book / actions */}
             <div className={"mb-5"}>
-                <MarketTradeSection marketPool={poolAccount}/>
+                <MarketTradeSection
+                    marketPool={poolAccount}
+                    marketKey={marketPubkey ? new PublicKey(marketPubkey) : null}
+                    market={market}
+                />
             </div>
 
             {/* ── Price history chart ─────────────────── */}
@@ -276,10 +280,12 @@ export default function MarketDetails() {
             </div>
             {liquidityEmptyModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/60">
-                    <div className="bg-[#1f2937] p-6 rounded-2xl shadow-xl w-full max-w-md border border-slate-600 text-white">
+                    <div
+                        className="bg-[#1f2937] p-6 rounded-2xl shadow-xl w-full max-w-md border border-slate-600 text-white">
                         <h2 className="text-2xl font-semibold mb-4">No Liquidity Found</h2>
                         <p className="text-red-300 mb-6">
-                            This market currently has no liquidity. To enable trading, please add initial liquidity to the pool.
+                            This market currently has no liquidity. To enable trading, please add initial liquidity to
+                            the pool.
                         </p>
 
                         <label className="block mb-2 text-sm font-medium text-slate-400">

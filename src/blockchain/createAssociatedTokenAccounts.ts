@@ -4,12 +4,12 @@ import {AnchorWallet} from "@solana/wallet-adapter-react";
 
 export const createAssociatedTokenAccounts = async (
     mint: PublicKey,
-    user: PublicKey,
+    walletKey: PublicKey,
     wallet: AnchorWallet,
     connection: any,
     ataInstructions: any[]
 ) => {
-    const ata = await getAssociatedTokenAddress(mint, user, true);
+    const ata = await getAssociatedTokenAddress(mint, walletKey, true);
     try {
         await getAccount(connection, ata);
     } catch (e) {
@@ -17,7 +17,7 @@ export const createAssociatedTokenAccounts = async (
             createAssociatedTokenAccountInstruction(
                 wallet.publicKey, // payer
                 ata,              // ata to create
-                user,             // owner
+                walletKey,             // owner
                 mint              // token mint
             )
         );
