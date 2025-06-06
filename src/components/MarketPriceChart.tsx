@@ -1,4 +1,3 @@
-// src/components/MarketPriceChart.tsx
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 interface Point { t: number; yesProb: number; }

@@ -1,4 +1,3 @@
-// src/WalletContextProvider.tsx
 import { FC, ReactNode, useMemo } from "react";
 import {
     ConnectionProvider,

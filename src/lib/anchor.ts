@@ -1,4 +1,3 @@
-// src/useMarketProgram.ts
 import {useMemo} from "react";
 import {useConnection, useAnchorWallet} from "@solana/wallet-adapter-react";
 import {

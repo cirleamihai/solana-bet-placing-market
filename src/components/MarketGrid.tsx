@@ -1,4 +1,3 @@
-// src/components/MarketGrid.tsx
 import {useEffect, useState} from "react";
 import {MarketCard} from "@/components/MarketCard";
 import {useAnchorProgram} from "@/lib/anchor";
