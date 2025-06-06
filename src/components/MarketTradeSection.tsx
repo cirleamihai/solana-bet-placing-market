@@ -4,7 +4,7 @@ import {useAnchorProgram} from "@/lib/anchor";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import {computePotentialShareProfit} from "@/blockchain/computePotentialShareProfit";
 
-const MAX_AMOUNT = 100_000_000; // 100 million
+const CONST_MAX_AMOUNT = 100_000_000; // 100 million
 
 interface TradeInfo {
     marketPool: object,
@@ -16,6 +16,8 @@ export default function MarketTradeSection({
     const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">("yes");
     const [_maxAmountReached, setMaxAmountReached] = useState(false);
     const [amount, setAmount] = useState(0);
+    // @ts-ignore
+    let MAX_AMOUNT = (marketPool.usdCollateral / 10 ** 9) ?? CONST_MAX_AMOUNT;
 
     const {wallet} = useAnchorProgram(); // Assuming you have a hook to get the wallet context
 
