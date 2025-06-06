@@ -2,6 +2,7 @@
 import {useState} from "react";
 import {Button} from "@/components/ui/button";
 import {useAnchorProgram} from "@/lib/anchor";
+import ConnectWalletButton from "@/components/ConnectWalletButton";
 
 const MAX_AMOUNT = 100_000_000; // 10 million
 
@@ -13,11 +14,12 @@ export default function MarketTradeSection() {
     const {wallet} = useAnchorProgram(); // Assuming you have a hook to get the wallet context
 
     const handleAddAmount = (value: number) => {
-        if (maxAmountReached) {
-            return; // Don't allow adding more if max amount is reached
+        if (amount + value < MAX_AMOUNT) {
+            setAmount((prev) => prev + value);
+            setMaxAmountReached(false);
+        } else {
+            setMaxAmountReached(true); // Set flag if adding this value exceeds max
         }
-
-        setAmount((prev) => prev + value);
     };
 
     const handleAmountTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,10 +108,11 @@ export default function MarketTradeSection() {
                     </div>
                 </div>
 
-                <Button
-                    className="bg-blue-500 hover:bg-blue-600 text-white w-full py-3 text-lg font-semibold rounded-md">
-                    Login to Trade
-                </Button>
+                {!wallet?.publicKey ? (
+                    <div className={"w-full [&_*]:w-full [&_*]:justify-center"}>
+                        <ConnectWalletButton/>
+                    </div>
+                ) : (<></>)}
             </div>
 
             {/* ── History / Order Book ─────────────────── */}
