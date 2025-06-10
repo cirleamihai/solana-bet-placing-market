@@ -159,7 +159,7 @@ export default function MarketTradeSection({
     useEffect(() => {
         const loadShares = async () => {
             if (!wallet?.publicKey) return;
-            const { yesShares, noShares } = await getOwnedShares(); // ← your function
+            const {yesShares, noShares} = await getOwnedShares(); // ← your function
             setYesSharesOwned(yesShares);
             setNoSharesOwned(noShares);
         };
@@ -209,14 +209,14 @@ export default function MarketTradeSection({
                 </div>
 
                 <div className="text-sm text-slate-400 mb-1">Amount</div>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4 w-full ">
                     <input
                         type="text"
-                        className="bg-transparent w-64 text-3xl font-semibold text-slate-300 focus:outline-none"
+                        className="bg-transparent w-64 text-3xl font-semibold text-slate-300 focus:outline-none absolute"
                         value={amount.toLocaleString()}
                         onChange={(e) => handleAmountTyping(e)}
                     />
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 ml-auto">
                         {[10, 50, 100, 1000].map((val) => (
                             <button
                                 key={val}
@@ -344,22 +344,27 @@ export default function MarketTradeSection({
 
                 {wallet?.publicKey && (
                     <div className="rounded-xl bg-[#1f2937] text-white p-6 h-full shadow-md">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+                        <div className="grid grid-cols-1 grid-flow-col auto-cols-fr gap-6 text-center">
                             <div className="bg-[#2a3646] rounded-lg p-4 shadow-inner border border-slate-700">
                                 <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">
                                     Money Invested
                                 </div>
-                                <div className="text-2xl font-semibold text-yellow-400">$123.45</div>
+                                <div className="text-xl font-semibold text-yellow-400 mt-3">$12322222.45</div>
                             </div>
 
                             <div className="bg-[#2a3646] rounded-lg p-4 shadow-inner border border-slate-700">
                                 <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">
                                     Shares Owned
                                 </div>
-                                <div className="text-xl font-semibold text-sky-300 flex flex-col sm:flex-row sm:justify-center gap-2">
-                                    <span className="text-green-400">{yesSharesOwned ? yesSharesOwned.toLocaleString() : "0"} Yes</span>
-                                    <span className="text-slate-500D">|</span>
-                                    <span className="text-red-400">{noSharesOwned ? noSharesOwned.toLocaleString() : "0"} No</span>
+                                <div
+                                    className="text-xl font-semibold text-sky-300 flex flex-col gap-2">
+                                    <span className="text-green-400">
+                                      {yesSharesOwned ? yesSharesOwned.toLocaleString() : "0"} Yes
+                                    </span>
+                                    <div className={"border-b-2 border-slate-600"}></div>
+                                    <span
+                                        className="text-red-400">{noSharesOwned ? noSharesOwned.toLocaleString() : "0"}  No
+                                    </span>
                                 </div>
                             </div>
 
@@ -367,7 +372,7 @@ export default function MarketTradeSection({
                                 <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">
                                     Profit / Loss
                                 </div>
-                                <div className={`text-2xl font-semibold `}>+$23.67</div>
+                                <div className={`text-xl font-semibold mt-3`}>+$222232222.67</div>
                             </div>
                         </div>
                     </div>

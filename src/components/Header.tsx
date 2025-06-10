@@ -55,7 +55,7 @@ export default function Header({
 
     return (
         <header className="bg-slate-800 text-white shadow-sm px-4 py-5">
-            <div className="max-w-5/6 mx-auto flex items-center justify-between tracking-ti">
+            <div className="w-[90%] mx-auto flex items-center justify-between tracking-ti">
                 {/* Left: Logo and Nav */}
                 <div className="flex items-center gap-6">
                     <Link to="/" className="text-3xl font-bold tracking-tight">
