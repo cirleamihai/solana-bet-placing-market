@@ -185,7 +185,7 @@ export default function MarketTradeSection({
                     </button>
                 </div>
 
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-between items-center mb-7">
                     <button
                         className={`flex-1 py-3 rounded-md text-center font-semibold text-lg mr-2 cursor-pointer ${
                             selectedOutcome === "yes"
@@ -209,7 +209,7 @@ export default function MarketTradeSection({
                 </div>
 
                 <div className="text-sm text-slate-400 mb-1">Amount</div>
-                <div className="flex items-center justify-between mb-4 w-full ">
+                <div className="flex items-center justify-between mb-7 w-full ">
                     <input
                         type="text"
                         className="bg-transparent w-64 text-3xl font-semibold text-slate-300 focus:outline-none absolute"
@@ -249,7 +249,7 @@ export default function MarketTradeSection({
                         <ConnectWalletButton/>
                     </div>
                 ) : (
-                    <div className="flex flex-col">
+                    <div className="flex flex-col mt-15">
                         <div className="flex gap-6 justify-between">
                             <div className="bg-[#2f3e4e] px-5 py-3 rounded-xl shadow-inner border border-slate-700">
                                 <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
@@ -274,7 +274,7 @@ export default function MarketTradeSection({
                                 setSubmitting(true);
                                 purchaseOutcomeShares().then();
                             }}
-                            className={`w-full h-12 mt-5 cursor-pointer text-white text-xl font-semibold py-3 rounded-md transition-all duration-300 ${purchased ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}
+                            className={`w-full mt-4 h-12  cursor-pointer text-white text-xl font-semibold py-3 rounded-md transition-all duration-300 ${purchased ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}
                             disabled={Number(amount) === 0 || submitting || purchased}
                         >
                             {purchased ? (
