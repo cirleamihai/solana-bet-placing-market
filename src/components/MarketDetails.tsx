@@ -209,7 +209,6 @@ export default function MarketDetails() {
 
     useEffect(() => {
         const computeChartData = () => {
-            console.log("Transaction details:", transactionDetails);
             if (transactionDetails.length > 0) {
                 const dataForChart = transactionDetails.map((tx: TransactionDetails) => ({
                     t: new Date(tx.created_at).getTime(), // Convert to milliseconds since epoch

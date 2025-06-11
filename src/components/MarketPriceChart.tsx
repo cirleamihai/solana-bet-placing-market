@@ -1,39 +1,80 @@
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    Tooltip,
+    ResponsiveContainer,
+    CartesianGrid
+} from "recharts";
 
-export interface ChartPoint { t: number; yesProb: string; noProb: string }
+export interface ChartPoint {
+    t: number;
+    yesProb: string;
+    noProb: string;
+}
+
 export default function MarketPriceChart({ points }: { points: ChartPoint[] }) {
-    // Convert ms-epoch → HH:MM for the tooltip / axis
-    const fmt = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const fmt = (ts: number) =>
+        new Date(ts).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit"
+        });
 
+    const getXTicks = (data: ChartPoint[]) => {
+        const count = Math.min(6, data.length);
+        const step = Math.max(1, Math.floor(data.length / count));
+        return data.filter((_, i) => i % step === 0).map((d) => d.t);
+    };
+
+    const reversedPoints = [...points].reverse();
 
     return (
         <div className="w-full h-110 bg-[#2f4150] rounded-xl p-4 shadow-md mb-5">
             <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[...points].reverse()}>
+                <LineChart data={reversedPoints}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal vertical={false} stroke="#475569" />
+
                     <XAxis
                         dataKey="t"
                         tickFormatter={fmt}
+                        ticks={getXTicks(reversedPoints)}
                         stroke="#cbd5e1"
                         tick={{ fontSize: 12 }}
                     />
+
                     <YAxis
                         domain={[0, 1]}
-                        tickFormatter={(v) => `$${v}`}
+                        tickFormatter={(v) => `$${v.toFixed(2)}`}
                         stroke="#cbd5e1"
                         tick={{ fontSize: 12 }}
                     />
+
                     <Tooltip
-                        labelFormatter={(label) => fmt(label as number)}
+                        labelFormatter={(label) =>
+                            new Date(label as number).toLocaleString("en-US", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                second: "2-digit"
+                            })
+                        }
                         formatter={(value, name) => {
                             const label = name === "yesProb" ? "Yes" : "No";
-                            return [`$${value} ${label}`];
+                            return [`$${Number(value).toFixed(2)}`, label];  // Recharts uses [value, name]
                         }}
+                        contentStyle={{ backgroundColor: "#1e293b", borderColor: "#64748b" }}
+                        labelStyle={{ color: "#94a3b8" }}
+                        itemStyle={{ fontWeight: 500 }} // Don't set color here — line color auto-applies
                     />
+
                     <Line
                         type="monotone"
                         dataKey="yesProb"
-                        stroke="#22c55e" // green-500
-                        strokeWidth={1}
+                        stroke="#22c55e"
+                        strokeWidth={1.5}
                         dot={false}
                         name="yesProb"
                         isAnimationActive={false}
@@ -41,8 +82,8 @@ export default function MarketPriceChart({ points }: { points: ChartPoint[] }) {
                     <Line
                         type="monotone"
                         dataKey="noProb"
-                        stroke="#ef4444" // red-500
-                        strokeWidth={1}
+                        stroke="#ef4444"
+                        strokeWidth={1.5}
                         dot={false}
                         name="noProb"
                         isAnimationActive={false}

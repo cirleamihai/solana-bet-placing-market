@@ -72,7 +72,6 @@ export default function MarketTradeSection({
     const noPrice = noLiquidity ? (yesLiquidity / (yesLiquidity + noLiquidity)).toFixed(2) : 0.50.toFixed(2);
 
     useEffect(() => {
-        console.log("Hey", yesPrice, noPrice)
         setYesPrice(Number(yesPrice));
         setNoPrice(Number(noPrice));
     }, [reloadMarket, yesPrice, noPrice, yesRemainingTokens, noRemainingTokens]);
