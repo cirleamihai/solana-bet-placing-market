@@ -13,6 +13,7 @@ import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
 import {toast} from "sonner";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
 import {Button} from "@/components/ui/button";
+import AddLiquidityModal from "@/components/AddLiquidityModal";
 
 export default function MarketDetails() {
     const {marketPubkey} = useParams();          // ← from route
@@ -27,6 +28,7 @@ export default function MarketDetails() {
     const [volume, setVolume] = useState<number>(0);
     const [reloadMarket, setReloadMarket] = useState(0);
     const [liquidityEmptyModal, setLiquidityEmptyModal] = useState(false);
+    const [wantsToAddLiquidity, setWantsToAddLiquidity] = useState(false);
     const [depositAmount, setDepositAmount] = useState<string>("");
     const [somethingWrong, setSomethingWrong] = useState<string | null>(null);
     const [poolAccount, setPoolAccount] = useState<any>(null); // Replace 'any' with the actual type if known
@@ -35,98 +37,6 @@ export default function MarketDetails() {
     const [yesPrice, setYesPrice] = useState<number>(-1);
     const [noPrice, setNoPrice] = useState<number>(-1);
     const [transactionDetails, setTransactionDetails] = useState<TransactionDetails[]>([]);
-
-    const handleInitialLiquidity = async () => {
-        if (!wallet?.publicKey || !marketPubkey || !market) return;
-        const ataInstructions: any[] = []; // Instructions for creating associated token accounts
-        const userUsd = (await createAssociatedTokenAccounts(USD_MINT, wallet.publicKey, wallet, connection, ataInstructions)).ata;
-        // @ts-ignore
-        const userYes = (await createAssociatedTokenAccounts(market.yesMint, wallet.publicKey, wallet, connection, ataInstructions)).ata;
-        // @ts-ignore
-        const userNo = (await createAssociatedTokenAccounts(market.noMint, wallet.publicKey, wallet, connection, ataInstructions)).ata;
-        // @ts-ignore
-        const userLp = (await createAssociatedTokenAccounts(market.lpShareMint, wallet.publicKey, wallet, connection, ataInstructions)).ata;
-
-        // Get the market public key
-        const marketKey = new PublicKey(marketPubkey);
-
-        const [poolPda] = PublicKey.findProgramAddressSync(
-            [Buffer.from("pool"), marketKey.toBuffer()],
-            program.programId
-        );
-
-        const [vaultPda] = PublicKey.findProgramAddressSync(
-            [Buffer.from("vault"), marketKey.toBuffer()],
-            program.programId
-        );
-
-        const [yesLiquidityPda] = PublicKey.findProgramAddressSync(
-            [Buffer.from("yes_liquidity_pool"), marketKey.toBuffer()],
-            program.programId
-        );
-
-        const [noLiquidityPda] = PublicKey.findProgramAddressSync(
-            [Buffer.from("no_liquidity_pool"), marketKey.toBuffer()],
-            program.programId
-        );
-
-        try {
-            const tx = new Transaction();
-            ataInstructions.length > 0 && tx.add(...ataInstructions);
-
-            const ix = await program.methods
-                .addLiquidity(new BN(Number(depositAmount) * 10 ** 9))
-                .accounts({
-                    pool: poolPda,
-                    market: marketKey,
-                    vault: vaultPda,
-                    // @ts-ignore
-                    yesMint: market.yesMint,
-                    // @ts-ignore
-                    noMint: market.noMint,
-                    // @ts-ignore
-                    lpShareMint: market.lpShareMint,
-                    userUsdAccount: userUsd,
-                    userYesAccount: userYes,
-                    userNoAccount: userNo,
-                    userLpShareAccount: userLp,
-                    liquidityYesTokensAccount: yesLiquidityPda,
-                    liquidityNoTokensAccount: noLiquidityPda,
-                    user: wallet.publicKey,
-                    tokenProgram: TOKEN_PROGRAM_ID,
-                })
-                .instruction();
-
-            tx.add(ix);
-
-            // @ts-ignore
-            const provider = program.provider as AnchorProvider;
-            const _sig = await provider.sendAndConfirm(tx);
-
-            toast.success("Liquidity added successfully!");
-            setLiquidityEmptyModal(false);
-        } catch (err) {
-            console.error("Failed to add liquidity:", err);
-            toast.error("Liquidity deposit failed.");
-        }
-    }
-
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let val = e.target.value.replace(/\s/g, "").replace(",", ".");
-
-        // Allow only digits and one decimal point
-        if (/^\d*\.?\d{0,9}$/.test(val) || val === "") {
-            setDepositAmount(val);
-        }
-    };
-
-    const formatted = depositAmount
-        ? Number(depositAmount).toLocaleString("en-US", {
-            minimumFractionDigits: depositAmount.includes(".") ? depositAmount.split(".")[1].length : 0,
-            useGrouping: true,
-        })
-        : "";
 
     useEffect(() => {
         if (!marketPubkey) return;
@@ -254,6 +164,17 @@ export default function MarketDetails() {
                 </h1>
 
                 <div className="flex items-center gap-8 mr-2">
+                    <Button
+                        className="bg-purple-700 hover:bg-purple-950 cursor-pointer text-slate-100 font-semibold px-6 py-2 h-10.5 rounded text-lg flex items-center justify-center"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            setWantsToAddLiquidity(true);
+                        }}
+                    >
+                        <div>
+                            + Add Liquidity
+                        </div>
+                    </Button>
                     {createdAt &&
                         <span className="text-md text-slate-300">
                         Created at &nbsp; <span
@@ -312,76 +233,74 @@ export default function MarketDetails() {
 
                 <MarketPriceChart points={chartData}/>
             </div>
-            {liquidityEmptyModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/60">
-                    <div
-                        className="bg-[#1f2937] p-6 rounded-2xl shadow-xl w-full max-w-md border border-slate-600 text-white">
-                        <h2 className="text-2xl font-semibold mb-4">No Liquidity Found</h2>
-                        <p className="text-red-300 mb-6">
-                            This market currently has no liquidity. To enable trading, please add initial liquidity to
-                            the pool.
-                        </p>
+            <div className="flex flex-col justify-between mt-10">
+                <div className="text-4xl font-bold text-slate-200 tracking-tight mb-5 flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        {/* Solana Coin Icon */}
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-10 w-10"
+                            viewBox="0 0 64 64"
+                        >
+                            <defs>
+                                {/* Coin gradient */}<radialGradient id="coinGrad" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stopColor="#003366" />
+                                <stop offset="10%" stopColor="#001933" />
+                            </radialGradient>
 
-                        <label className="block mb-2 text-sm font-medium text-slate-400">
-                            Deposit Amount (USD-UBB)
-                        </label>
-                        <input
-                            type="text"
-                            inputMode="decimal"
-                            className="w-full px-4 py-2 rounded-md bg-slate-800 border border-slate-600 text-white focus:outline-none mb-6"
-                            value={formatted}
-                            onChange={handleChange}
-                        />
+                                {/* Solana logo gradient */}
+                                <linearGradient id="solGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                                    <stop offset="0%" stopColor="#00ffa3" />
+                                    <stop offset="100%" stopColor="#dc1fff" />
+                                </linearGradient>
+                            </defs>
 
-                        <div className="flex justify-end gap-3">
-                            <button
-                                className="px-4 py-2 rounded-md cursor-pointer bg-slate-700 hover:bg-slate-600 text-sm text-white"
-                                onClick={() => {
-                                    navigate("/"); // Close modal by navigating back
-                                }}
-                            >
-                                Back
-                            </button>
-                            <Button
-                                onClick={() => {
-                                    setSubmitting(true);
-                                    handleInitialLiquidity().then();
-                                }}
-                                className="px-4 py-2 rounded-md cursor-pointer bg-green-600 hover:bg-green-700 text-sm text-white font-semibold"
-                                disabled={Number(depositAmount) === 0 || submitting}
-                            >
-                                {submitting ? (
-                                    <>
-                                        <svg
-                                            className="animate-spin h-4 w-4 text-white"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <circle
-                                                className="opacity-25"
-                                                cx="12"
-                                                cy="12"
-                                                r="10"
-                                                stroke="currentColor"
-                                                strokeWidth="4"
-                                            ></circle>
-                                            <path
-                                                className="opacity-75"
-                                                fill="currentColor"
-                                                d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"
-                                            ></path>
-                                        </svg>
-                                        Submitting...
-                                    </>
-                                ) : (
-                                    "Submit"
-                                )}
-                            </Button>
-                        </div>
+                            {/* Outer coin circle */}
+                            <circle cx="32" cy="32" r="30" fill="url(#coinGrad)" />
+
+                            {/* Solana logo: three slanted bars */}
+                            {/** Each bar is a parallelogram rotated slightly */}
+                            <g transform="translate(14, 20)">
+                                <polygon
+                                    points="0,0 28,0 24,8 0,8"
+                                    fill="url(#solGrad)"
+                                />
+                            </g>
+                            <g transform="translate(20, 28)">
+                                <polygon
+                                    points="0,0 28,0 24,8 0,8"
+                                    fill="url(#solGrad)"
+                                    opacity="0.8"
+                                />
+                            </g>
+                            <g transform="translate(26, 36)">
+                                <polygon
+                                    points="0,0 28,0 24,8 0,8"
+                                    fill="url(#solGrad)"
+                                    opacity="0.6"
+                                />
+                            </g>
+                        </svg>
                     </div>
+
+                    Liquidity Pool
                 </div>
-            )}
+
+
+
+            </div>
+            {(liquidityEmptyModal  || wantsToAddLiquidity) && (
+                <AddLiquidityModal
+                    marketPubkey={marketPubkey || ""}
+                    market={market}
+                    wantsToAddLiquidity={wantsToAddLiquidity}
+                    setWantsToAddLiquidity={setWantsToAddLiquidity}
+                    liquidityEmptyModal={liquidityEmptyModal}
+                    setLiquidityEmptyModal={setLiquidityEmptyModal}
+                    submitting={submitting}
+                    setSubmitting={setSubmitting}
+                />
+                )}
         </main>
     );
 }
