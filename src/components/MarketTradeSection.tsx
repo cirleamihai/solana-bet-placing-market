@@ -478,7 +478,7 @@ export default function MarketTradeSection({
                                                 className="text-slate-300"
                                                 title={wallet?.publicKey.toBase58()}
                                             >
-                                              User {trade.user_pubkey.slice(0, 4)}...{trade.user_pubkey.slice(-4)}
+                                              User {trade.user_pubkey.slice(0, 5)}...{trade.user_pubkey.slice(-4)}
                                             </span>
 
                                                 <div
