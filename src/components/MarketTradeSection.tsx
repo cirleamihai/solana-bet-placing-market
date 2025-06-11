@@ -470,14 +470,30 @@ export default function MarketTradeSection({
                                         className="ml-auto h-[20px] w-[1px] bg-slate-600 mx-2 opacity-50 rounded"></div>
 
                                     {/* Details */}
-                                    <div className="flex justify-between items-center flex-1">
-                                    <span className="text-slate-300">
-                                      Bought {trade.amount_purchased.toFixed(2).toLocaleString()}{" "}
-                                        {trade.purchased_outcome[0].toUpperCase() + trade.purchased_outcome.slice(1)}
-                                    </span>
-                                        <span className="text-slate-400 font-semibold">
-                                      ${trade.money_spent.toFixed(2).toLocaleString()}
-                                    </span>
+                                    <div className="flex justify-between items-center flex-1 font-mono">
+                                        <div className="flex gap-2">
+                                            <span
+                                                className="text-slate-300"
+                                                title={wallet?.publicKey.toBase58()}
+                                            >
+                                              User {trade.user_pubkey.slice(0, 6)}...{trade.user_pubkey.slice(-4)}
+                                            </span>
+
+                                            <div
+                                                className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
+                                            <span className="min-w-[220px] inline-block font-mono text-slate-300">
+                                              Purchased {trade.amount_purchased.toFixed(2).toLocaleString()}{" "}
+                                                {trade.purchased_outcome[0].toUpperCase() + trade.purchased_outcome.slice(1)} shares
+                                            </span>
+                                            <div
+                                                className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
+                                            <span className="text-slate-300">
+                                              ${(trade.money_spent / trade.amount_purchased).toFixed(2)}/ share
+                                            </span>
+                                        </div>
+                                        <span className="text-slate-400 font-bold">
+                                          ${trade.money_spent.toFixed(2).toLocaleString()}
+                                        </span>
                                     </div>
                                 </motion.li>
                             ))}
