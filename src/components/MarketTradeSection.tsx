@@ -24,6 +24,8 @@ export interface TransactionDetails {
     amount_purchased: number; // in shares
     money_spent: number; // in USD
     created_at: string; // ISO date string
+    yes_price: number; // Price of Yes outcome
+    no_price: number; // Price of No outcome
 }
 
 interface TradeInfo {
@@ -55,15 +57,19 @@ export default function MarketTradeSection({
     const [noRemainingTokens, setNoRemainingTokens] = useState(0);
     const [parser, _setParser] = useState(new EventParser(program.programId, program.coder))
 
+    // Convert BN to numbers (if needed)
+    // @ts-ignore
+    const yesLiquidity = yesRemainingTokens ? yesRemainingTokens : marketPool.yesLiquidity?.toNumber?.() ?? 0;
+    // @ts-ignore
+    const noLiquidity = noRemainingTokens ? noRemainingTokens : marketPool.noLiquidity?.toNumber?.() ?? 0;
+    const yesPrice = yesLiquidity ? (noLiquidity / (yesLiquidity + noLiquidity)).toFixed(2) : 0.50.toFixed(2);
+    const noPrice = noLiquidity ? (yesLiquidity / (yesLiquidity + noLiquidity)).toFixed(2) : 0.50.toFixed(2);
+
 
     const handleNewPurchase = useCallback(
         async (event: { txSignature: string, transaction: any }) => {
             setReloadMarket((prev: any) => prev + 1);
             console.log('Transaction details:', event.transaction);
-
-            // Set the remaining tokens for yes and no outcomes
-            setYesRemainingTokens(Number(event.transaction.poolRemainingYesTokens));
-            setNoRemainingTokens(Number(event.transaction.poolRemainingNoTokens));
 
             // Here, we are going to post the transactions to our supabase
             const {data, error} = await supabase.from("bets").upsert(
@@ -75,10 +81,16 @@ export default function MarketTradeSection({
                         purchased_outcome: selectedOutcome,
                         amount_purchased: Number(event.transaction.wantedSharesPurchased) / 10 ** 9, // Convert from decimals to shares
                         money_spent: Number(event.transaction.amount) / 10 ** 9,
+                        yes_price: yesPrice,
+                        no_price: noPrice,
                     }
                 ],
                 {onConflict: "tx_signature",}
             )
+
+            // Set the remaining tokens for yes and no outcomes
+            setYesRemainingTokens(Number(event.transaction.poolRemainingYesTokens));
+            setNoRemainingTokens(Number(event.transaction.poolRemainingNoTokens));
 
             if (error) {
                 if (error.code !== '42501') { // 42501 is a duplicate pk error which is fine for now
@@ -121,14 +133,6 @@ export default function MarketTradeSection({
             setMaxAmountReached(true);
         }
     }
-
-    // Convert BN to numbers (if needed)
-    // @ts-ignore
-    const yesLiquidity = yesRemainingTokens ? yesRemainingTokens : marketPool.yesLiquidity?.toNumber?.() ?? 0;
-    // @ts-ignore
-    const noLiquidity = noRemainingTokens ? noRemainingTokens : marketPool.noLiquidity?.toNumber?.() ?? 0;
-    const yesPrice = yesLiquidity ? (noLiquidity / (yesLiquidity + noLiquidity)).toFixed(2) : 0.50.toFixed(2);
-    const noPrice = noLiquidity ? (yesLiquidity / (yesLiquidity + noLiquidity)).toFixed(2) : 0.50.toFixed(2);
 
     // Compute expected profit
     let expectedProfit = computePotentialShareProfit(
@@ -391,7 +395,7 @@ export default function MarketTradeSection({
             <div className="flex flex-col gap-2">
                 <div className="rounded-xl bg-[#1f2937] text-white p-6 shadow-md">
                     <h3 className="text-lg font-semibold mb-4">Recent Trades</h3>
-                    <ul className="custom-scroll space-y-1 max-h-[160px] overflow-y-auto pr-1">
+                    <ul className="custom-scroll space-y-1 h-[160px] overflow-y-auto pr-1">
                         <AnimatePresence initial={false}>
                             {transactionDetails.slice(0, 25).map((trade, i) => (
                                 <motion.li

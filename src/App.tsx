@@ -14,7 +14,7 @@ export default function App() {
         <>
             <Toaster position={"top-right"}/>
             <Router>
-                <div className={"bg-slate-800 min-h-screen"}>
+                <div className={"bg-slate-800 min-h-screen overflow-x-hidden"}>
                     <Header
                         searchQuery={searchQuery}
                         setSearchQuery={setSearchQuery}

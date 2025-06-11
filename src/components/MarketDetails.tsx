@@ -5,7 +5,7 @@ import {supabase} from "@/lib/supabase";
 import {PublicKey, Transaction} from "@solana/web3.js";
 import {AnchorProvider} from "@coral-xyz/anchor";
 import {GridLoader} from "react-spinners";
-import MarketPriceChart from "@/components/MarketPriceChart";
+import MarketPriceChart, {ChartPoint} from "@/components/MarketPriceChart";
 import MarketTradeSection, {TransactionDetails} from "@/components/MarketTradeSection";
 import {BN} from "@coral-xyz/anchor";
 import {USD_MINT} from "@/lib/constants";
@@ -13,11 +13,6 @@ import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
 import {toast} from "sonner";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
 import {Button} from "@/components/ui/button";
-
-interface ChartPoint {
-    t: number;          // milliseconds since epoch
-    yesProb: number;    // 0-100
-}
 
 export default function MarketDetails() {
     const {marketPubkey} = useParams();          // ← from route
@@ -180,18 +175,7 @@ export default function MarketDetails() {
                     .single();
 
                 setQuestion(data?.market_name ?? `Market ${marketPubkey.slice(0, 4)}…`);
-                setCreatedAt(data?.created_at)
-
-                /** ---------- chart seed -------------- **/
-                    // TEMP: five mock points – replace once you wire event indexer
-                const now = Date.now();
-                setChartData([
-                    {t: now - 4 * 3600e3, yesProb: prob - 3.52},
-                    {t: now - 3 * 3600e3, yesProb: prob - 2},
-                    {t: now - 2 * 3600e3, yesProb: prob},
-                    {t: now - 1 * 3600e3, yesProb: prob + 1},
-                    {t: now, yesProb: prob},
-                ]);
+                setCreatedAt(data?.created_at);
             } catch (err) {
                 console.error("Failed to load market page:", err);
             } finally {
@@ -199,8 +183,6 @@ export default function MarketDetails() {
             }
         })();
     }, [marketPubkey, program]);
-
-    console.log(chartData)
 
     useEffect(() => {
         const fetchDbMarketData = async () => {
@@ -217,12 +199,17 @@ export default function MarketDetails() {
                 toast.error("Error fetching market data.");
             }
             // @ts-ignore
-            setTransactionDetails(data);
-            // if (data) {
-            //     setChartData(
-            //         // TODO: use a more efficient way to compute this
-            //     )
-            // }
+            if (data) {
+                setTransactionDetails(data);
+                setChartData(
+                    data.map((tx: TransactionDetails) => ({
+                        t: new Date(tx.created_at).getTime(), // Convert to milliseconds since epoch
+                        yesProb: (tx.yes_price).toFixed(2), // Assuming yes_prob is a field in your transaction data
+                        noProb: (tx.no_price).toFixed(2)
+                    }))
+                )
+            }
+
 
         }
 
