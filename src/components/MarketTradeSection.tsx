@@ -55,6 +55,8 @@ export default function MarketTradeSection({
     const [noSharesOwned, setNoSharesOwned] = useState(0);
     const [yesRemainingTokens, setYesRemainingTokens] = useState(0);
     const [noRemainingTokens, setNoRemainingTokens] = useState(0);
+    const [moneyInvested, setMoneyInvested] = useState(0);
+    const [profitMade, setProfitMade] = useState(0);
     const [parser, _setParser] = useState(new EventParser(program.programId, program.coder))
 
     // Convert BN to numbers (if needed)
@@ -65,6 +67,19 @@ export default function MarketTradeSection({
     const yesPrice = yesLiquidity ? (noLiquidity / (yesLiquidity + noLiquidity)).toFixed(2) : 0.50.toFixed(2);
     const noPrice = noLiquidity ? (yesLiquidity / (yesLiquidity + noLiquidity)).toFixed(2) : 0.50.toFixed(2);
 
+    useEffect(() => {
+        const computeInvestmentPrice = () => {
+            if (!transactionDetails || !wallet || !wallet.publicKey || !yesSharesOwned || !noSharesOwned) return;
+            const userTransactions = transactionDetails.filter((tx: TransactionDetails) => tx.user_pubkey === wallet?.publicKey?.toBase58());
+            const totalInvested = userTransactions.reduce((acc, tx) => acc + tx.money_spent, 0);
+            const profit = yesSharesOwned * Number(yesPrice) + noSharesOwned * Number(noPrice) - totalInvested;
+
+            setMoneyInvested(totalInvested);
+            setProfitMade(profit);
+        }
+        computeInvestmentPrice();
+
+    }, [reloadMarket, yesPrice, noPrice, yesSharesOwned, noSharesOwned]);
 
     const handleNewPurchase = useCallback(
         async (event: { txSignature: string, transaction: any }) => {
@@ -447,7 +462,7 @@ export default function MarketTradeSection({
                                 <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">
                                     Money Invested
                                 </div>
-                                <div className="text-xl font-semibold text-yellow-400 mt-3">$12322222.45</div>
+                                <div className="text-xl font-semibold text-purple-400 mt-3">${moneyInvested.toLocaleString("en-US", {minimumFractionDigits: 3, maximumFractionDigits: 3})}</div>
                             </div>
 
                             <div className="bg-[#2a3646] rounded-lg p-4 shadow-inner border border-slate-700">
@@ -470,7 +485,8 @@ export default function MarketTradeSection({
                                 <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">
                                     Profit / Loss
                                 </div>
-                                <div className={`text-xl font-semibold mt-3`}>+$222232222.67</div>
+                                <div className={`text-xl font-semibold mt-3 ${profitMade >= 0 ?
+                                    "text-green-400" : "text-red-400"}`}>${profitMade.toLocaleString("en-US", {minimumFractionDigits: 3, maximumFractionDigits: 3})}</div>
                             </div>
                         </div>
                     </div>
