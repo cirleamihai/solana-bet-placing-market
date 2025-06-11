@@ -12,6 +12,7 @@ import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenA
 import {AnchorProvider, EventParser} from "@coral-xyz/anchor";
 import {listenToPurchaseSharesEventHelius} from "@/blockchain/heliusEventListener";
 import {supabase} from "@/lib/supabase";
+import {motion, AnimatePresence} from "framer-motion";
 
 const CONST_MAX_AMOUNT = 100_000_000; // 100 million
 
@@ -38,41 +39,42 @@ export default function MarketTradeSection({
     const [yesRemainingTokens, setYesRemainingTokens] = useState(0);
     const [noRemainingTokens, setNoRemainingTokens] = useState(0);
     const [parser, _setParser] = useState(new EventParser(program.programId, program.coder))
+    const [transactionDetails, setTransactionDetails] = useState<any[]>([]);
 
 
     const handleNewPurchase = useCallback(
         async (event: { txSignature: string, transaction: any }) => {
-        setReloadShares((prev) => prev + 1);
-        console.log('Transaction details:', event.transaction);
+            setReloadShares((prev) => prev + 1);
+            console.log('Transaction details:', event.transaction);
 
-        // Set the remaining tokens for yes and no outcomes
-        setYesRemainingTokens(Number(event.transaction.poolRemainingYesTokens));
-        setNoRemainingTokens(Number(event.transaction.poolRemainingNoTokens));
+            // Set the remaining tokens for yes and no outcomes
+            setYesRemainingTokens(Number(event.transaction.poolRemainingYesTokens));
+            setNoRemainingTokens(Number(event.transaction.poolRemainingNoTokens));
 
-        // Here, we are going to post the transactions to our supabase
-        const { data, error } = await supabase.from("bets").upsert(
-            [
-                {
-                    tx_signature: event.txSignature,
-                    market_pubkey: marketKey,
-                    user_pubkey: wallet?.publicKey.toBase58(),
-                    purchased_outcome: selectedOutcome,
-                    amount_purchased: Number(event.transaction.wantedSharesPurchased) / 10 ** 9 , // Convert from decimals to shares
-                    money_spent: Number(event.transaction.amount) / 10 ** 9,
+            // Here, we are going to post the transactions to our supabase
+            const {data, error} = await supabase.from("bets").upsert(
+                [
+                    {
+                        tx_signature: event.txSignature,
+                        market_pubkey: marketKey,
+                        user_pubkey: wallet?.publicKey.toBase58(),
+                        purchased_outcome: selectedOutcome,
+                        amount_purchased: Number(event.transaction.wantedSharesPurchased) / 10 ** 9, // Convert from decimals to shares
+                        money_spent: Number(event.transaction.amount) / 10 ** 9,
+                    }
+                ],
+                {onConflict: "tx_signature",}
+            )
+
+            if (error) {
+                if (error.code !== '42501') { // 42501 is a duplicate pk error which is fine for now
+                    console.error("Error inserting bet:", error);
                 }
-            ],
-            { onConflict: "tx_signature", }
-        )
-
-        if (error) {
-            if (error.code !== '42501') { // 42501 is a duplicate pk error which is fine for now
-                console.error("Error inserting bet:", error);
+            } else {
+                console.log("Bet recorded successfully:", data);
             }
-        } else {
-            console.log("Bet recorded successfully:", data);
-        }
 
-    }, [setReloadShares]);
+        }, [setReloadShares]);
 
     // Listen to the Helius events for market updates
     listenToPurchaseSharesEventHelius(
@@ -214,6 +216,28 @@ export default function MarketTradeSection({
         };
 
         loadShares();
+    }, [reloadShares]);
+
+    useEffect(() => {
+        const fetchDbMarketData = async () => {
+            if (!marketKey) return;
+
+            const {data, error} = await supabase
+                .from("bets")
+                .select()
+                .eq("market_pubkey", marketKey.toBase58())
+                .order("created_at", {ascending: false})
+
+            if (error) {
+                console.log("Error fetching market data:", error);
+                toast.error("Error fetching market data.");
+            }
+            // @ts-ignore
+            setTransactionDetails(data);
+
+        }
+
+        fetchDbMarketData();
     }, [reloadShares]);
 
     return (
@@ -373,21 +397,49 @@ export default function MarketTradeSection({
 
             {/* ── History / Order Book ─────────────────── */}
             <div className="flex flex-col gap-2">
-                <div className="rounded-xl bg-[#1f2937] text-white p-6 shadow-md h-[60%]">
+                <div className="rounded-xl bg-[#1f2937] text-white p-6 shadow-md">
                     <h3 className="text-lg font-semibold mb-4">Recent Trades</h3>
-                    <ul className="space-y-2 max-h-72 overflow-y-auto text-sm">
-                        {[
-                            {side: "Buy", outcome: "Yes", amount: 24},
-                            {side: "Buy", outcome: "No", amount: 15},
-                            {side: "Buy", outcome: "Yes", amount: 50},
-                            {side: "Buy", outcome: "Yes", amount: 12},
-                            {side: "Buy", outcome: "No", amount: 100},
-                        ].map((trade, i) => (
-                            <li key={i} className="flex justify-between border-b border-gray-700 pb-1">
-                                <span>{trade.side} {trade.outcome}</span>
-                                <span className="text-slate-400">${trade.amount}</span>
-                            </li>
-                        ))}
+                    <ul className="custom-scroll space-y-1 max-h-[160px] overflow-y-auto pr-1">
+                        <AnimatePresence initial={false}>
+                            {transactionDetails.slice(0, 50).map((trade, i) => (
+                                <motion.li
+                                    key={trade.tx_signature} // ✅ Use unique key
+                                    initial={{opacity: 0, y: 10}}
+                                    animate={{opacity: 1, y: 0}}
+                                    exit={{opacity: 0, y: -10}}
+                                    transition={{duration: 0.3, ease: "easeOut"}}
+                                    className="flex items-center border-b border-gray-700 px-2 py-[6px] rounded-md hover:bg-[#273447] transition duration-150 text-sm"
+                                >
+                                    {/* Timestamp */}
+                                    <div
+                                        className="text-xs text-blue-400 italic min-w-[100px] text-left pr-2 leading-none">
+                                        {new Date(trade.created_at).toLocaleString("en-US", {
+                                            year: "numeric",
+                                            month: "short",
+                                            day: "numeric",
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                            second: "2-digit",
+                                            hour12: true,
+                                        })}
+                                    </div>
+
+                                    {/* Divider */}
+                                    <div className="ml-auto h-[20px] w-[1px] bg-slate-600 mx-2 opacity-50 rounded"></div>
+
+                                    {/* Details */}
+                                    <div className="flex justify-between items-center flex-1">
+                                    <span className="text-slate-300">
+                                      Bought {trade.amount_purchased.toFixed(2).toLocaleString()}{" "}
+                                        {trade.purchased_outcome[0].toUpperCase() + trade.purchased_outcome.slice(1)}
+                                    </span>
+                                        <span className="text-slate-400 font-semibold">
+                                      ${trade.money_spent.toFixed(2).toLocaleString()}
+                                    </span>
+                                    </div>
+                                </motion.li>
+                            ))}
+                        </AnimatePresence>
                     </ul>
                 </div>
 
@@ -412,7 +464,7 @@ export default function MarketTradeSection({
                                     </span>
                                     <div className={"border-b-2 border-slate-600"}></div>
                                     <span
-                                        className="text-red-400">{noSharesOwned ? noSharesOwned.toLocaleString() : "0"}  No
+                                        className="text-red-400">{noSharesOwned ? noSharesOwned.toLocaleString() : "0"} No
                                     </span>
                                 </div>
                             </div>
