@@ -1,15 +1,16 @@
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {Button} from "@/components/ui/button";
 import {useAnchorProgram} from "@/lib/anchor";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import {computePotentialShareProfit} from "@/blockchain/computePotentialShareProfit";
-import {PublicKey, Transaction} from "@solana/web3.js";
+import {Connection, PublicKey, Transaction} from "@solana/web3.js";
 import BN from "bn.js";
 import {getAssociatedTokenAddress, TOKEN_PROGRAM_ID} from "@solana/spl-token";
 import {USD_MINT} from "@/lib/constants";
 import {toast} from "sonner";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
 import {AnchorProvider} from "@coral-xyz/anchor";
+import {getWSConnection} from "@/blockchain/heliusEventListener";
 
 const CONST_MAX_AMOUNT = 100_000_000; // 100 million
 
@@ -167,6 +168,58 @@ export default function MarketTradeSection({
         loadShares();
     }, [reloadShares]);
 
+    const useHeliusEvents = (
+        marketKey: PublicKey,
+    ) => {
+        const handleNewPurchase = useCallback((transaction: any) => {
+            toast.success("New share purchase detected!");
+            setReloadShares((prev) => prev + 1);
+
+            // You can parse more details from the transaction
+            console.log('Transaction details:', transaction);
+        }, []);
+
+        useEffect(() => {
+            if (!marketKey) return;
+
+            const connection = getWSConnection("devnet");
+
+            // Listen for program logs
+            const logSubscription = connection.onLogs(
+                program.programId,
+                async (logs, context) => {
+                    if (logs.logs.some(log => log.includes('PurchaseOutcomeShares'))) {
+                        try {
+                            // Get full transaction details
+                            const tx = await connection.getTransaction(logs.signature, {
+                                maxSupportedTransactionVersion: 0
+                            });
+                            handleNewPurchase(tx);
+                        } catch (error) {
+                            console.error('Error fetching transaction:', error);
+                        }
+                    }
+                },
+                'confirmed'
+            );
+
+            // Listen for account changes on your market
+            const accountSubscription = connection.onAccountChange(
+                marketKey,
+                (accountInfo, context) => {
+                    console.log('Market account changed:', accountInfo);
+                    setReloadShares((prev) => prev + 1);
+                },
+                'confirmed'
+            );
+
+            return () => {
+                connection.removeOnLogsListener(logSubscription);
+                connection.removeAccountChangeListener(accountSubscription);
+            };
+        }, [marketKey, handleNewPurchase]);
+    };
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12 w-full  mx-auto">
 
@@ -185,7 +238,7 @@ export default function MarketTradeSection({
                     </button>
                 </div>
 
-                <div className="flex justify-between items-center mb-7">
+                <div className="flex justify-between items-center mb-3">
                     <button
                         className={`flex-1 py-3 rounded-md text-center font-semibold text-lg mr-2 cursor-pointer ${
                             selectedOutcome === "yes"
