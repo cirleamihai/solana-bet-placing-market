@@ -9,8 +9,9 @@ import {getAssociatedTokenAddress, TOKEN_PROGRAM_ID} from "@solana/spl-token";
 import {USD_MINT} from "@/lib/constants";
 import {toast} from "sonner";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
-import {AnchorProvider} from "@coral-xyz/anchor";
-import {getWSConnection} from "@/blockchain/heliusEventListener";
+import {AnchorProvider, EventParser} from "@coral-xyz/anchor";
+import {getWSConnection, listenToHeliusPurchaseSharesEvent} from "@/blockchain/heliusEventListener";
+import {supabase} from "@/lib/supabase";
 
 const CONST_MAX_AMOUNT = 100_000_000; // 100 million
 
@@ -34,6 +35,54 @@ export default function MarketTradeSection({
     const [yesSharesOwned, setYesSharesOwned] = useState(0);
     const [noSharesOwned, setNoSharesOwned] = useState(0);
     const [reloadShares, setReloadShares] = useState(0);
+    const [yesRemainingTokens, setYesRemainingTokens] = useState(0);
+    const [noRemainingTokens, setNoRemainingTokens] = useState(0);
+    const [parser, _setParser] = useState(new EventParser(program.programId, program.coder))
+
+
+    const handleNewPurchase = useCallback(
+        async (event: { txSignature: string, transaction: any }) => {
+        setReloadShares((prev) => prev + 1);
+        console.log('Transaction details:', event.transaction);
+
+        // Set the remaining tokens for yes and no outcomes
+        setYesRemainingTokens(Number(event.transaction.poolRemainingYesTokens) / 10 ** 9);
+        setNoRemainingTokens(Number(event.transaction.poolRemainingNoTokens) / 10 ** 9);
+
+        // Here, we are going to post the transactions to our supabase
+        const { data, error } = await supabase.from("bets").upsert(
+            [
+                {
+                    tx_signature: event.txSignature,
+                    market_pubkey: marketKey,
+                    user_pubkey: wallet?.publicKey.toBase58(),
+                    purchased_outcome: selectedOutcome,
+                    amount_purchased: Number(event.transaction.wantedSharesPurchased) / 10 ** 9 , // Convert from decimals to shares
+                    money_spent: Number(event.transaction.amount) / 10 ** 9,
+                }
+            ],
+            { onConflict: "tx_signature", }
+        )
+
+        if (error) {
+            if (error.code !== '42501') { // 42501 is a duplicate pk error which is fine for now
+                console.error("Error inserting bet:", error);
+            }
+        } else {
+            console.log("Bet recorded successfully:", data);
+        }
+
+    }, [setReloadShares]);
+
+    // Listen to the Helius events for market updates
+    listenToHeliusPurchaseSharesEvent(
+        marketKey,
+        program.programId,
+        setReloadShares,
+        program,
+        parser,
+        handleNewPurchase
+    )
 
     // @ts-ignore
     let MAX_AMOUNT = CONST_MAX_AMOUNT;
@@ -60,9 +109,9 @@ export default function MarketTradeSection({
 
     // Convert BN to numbers (if needed)
     // @ts-ignore
-    const yesLiquidity = marketPool.yesLiquidity?.toNumber?.() ?? 0;
+    const yesLiquidity = yesRemainingTokens ? yesRemainingTokens : marketPool.yesLiquidity?.toNumber?.() ?? 0;
     // @ts-ignore
-    const noLiquidity = marketPool.noLiquidity?.toNumber?.() ?? 0;
+    const noLiquidity = noRemainingTokens ? noRemainingTokens : marketPool.noLiquidity?.toNumber?.() ?? 0;
     const yesPrice = yesLiquidity ? (noLiquidity / (yesLiquidity + noLiquidity)).toFixed(2) : 0.50.toFixed(2);
     const noPrice = noLiquidity ? (yesLiquidity / (yesLiquidity + noLiquidity)).toFixed(2) : 0.50.toFixed(2);
 
@@ -167,58 +216,6 @@ export default function MarketTradeSection({
 
         loadShares();
     }, [reloadShares]);
-
-    const useHeliusEvents = (
-        marketKey: PublicKey,
-    ) => {
-        const handleNewPurchase = useCallback((transaction: any) => {
-            toast.success("New share purchase detected!");
-            setReloadShares((prev) => prev + 1);
-
-            // You can parse more details from the transaction
-            console.log('Transaction details:', transaction);
-        }, []);
-
-        useEffect(() => {
-            if (!marketKey) return;
-
-            const connection = getWSConnection("devnet");
-
-            // Listen for program logs
-            const logSubscription = connection.onLogs(
-                program.programId,
-                async (logs, context) => {
-                    if (logs.logs.some(log => log.includes('PurchaseOutcomeShares'))) {
-                        try {
-                            // Get full transaction details
-                            const tx = await connection.getTransaction(logs.signature, {
-                                maxSupportedTransactionVersion: 0
-                            });
-                            handleNewPurchase(tx);
-                        } catch (error) {
-                            console.error('Error fetching transaction:', error);
-                        }
-                    }
-                },
-                'confirmed'
-            );
-
-            // Listen for account changes on your market
-            const accountSubscription = connection.onAccountChange(
-                marketKey,
-                (accountInfo, context) => {
-                    console.log('Market account changed:', accountInfo);
-                    setReloadShares((prev) => prev + 1);
-                },
-                'confirmed'
-            );
-
-            return () => {
-                connection.removeOnLogsListener(logSubscription);
-                connection.removeAccountChangeListener(accountSubscription);
-            };
-        }, [marketKey, handleNewPurchase]);
-    };
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12 w-full  mx-auto">
