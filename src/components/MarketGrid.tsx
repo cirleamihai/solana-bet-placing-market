@@ -7,6 +7,7 @@ import EmptyState from "@/components/EmptyState";
 import {useDebounce} from "@/lib/useDebounce";
 import {useParams} from "react-router-dom";
 import {PublicKey} from "@solana/web3.js";
+import {listenToMarketChanges} from "@/blockchain/heliusEventListener";
 
 interface MarketGridProps {
     searchQuery: string;
@@ -17,15 +18,23 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
     const [markets, setMarkets] = useState<any[]>([]);
     const [metadata, setMetadata] = useState<Record<string, string>>({});
     const [marketsPool, setMarketsPool] = useState<Record<string, any>>({});
+    const [marketStatusChanged, setMarketStatusChanged] = useState(0);
     const [loading, setLoading] = useState(true);
     const {program} = useAnchorProgram();
     const {market_category} = useParams();
+
+    listenToMarketChanges(
+        setMarketStatusChanged,
+        program.programId
+    )
 
     const debouncedMarketName = useDebounce(searchQuery, 500);
 
     useEffect(() => {
         const fetchMarkets = async () => {
-            setLoading(true);
+            if (markets.length === 0) {
+                setLoading(true);
+            }
             try {
                 // @ts-ignore
                 const fetchedMarkets = await program.account.market.all();
@@ -90,7 +99,7 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
         };
 
         fetchMarkets();
-    }, [debouncedMarketName, program, market_category]);
+    }, [debouncedMarketName, program, market_category, marketStatusChanged]);
 
     if (loading) {
         return (

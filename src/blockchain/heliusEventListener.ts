@@ -11,7 +11,6 @@ export const listenToPurchaseSharesEventHelius = (
     marketKey: PublicKey,
     programId: PublicKey,
     setReloadShares: React.Dispatch<React.SetStateAction<number>>,
-    program: Program,
     parser: EventParser,
     handleNewPurchase: (event: any) => void,  // Callback to handle new purchase events
 ) => {
@@ -22,7 +21,7 @@ export const listenToPurchaseSharesEventHelius = (
         const connection = getWSConnection("devnet");
 
         const logSubscription = connection.onLogs(
-            program.programId,
+            programId,
             async (logInfo) => {
                 const parsedEvents = [...parser.parseLogs(logInfo.logs)];
                 for (const event of parsedEvents) {
@@ -72,4 +71,26 @@ export const listenToAccountChangeHelius = (
             connection.removeAccountChangeListener(accountChangeSubscription);
         }
     }, [walletPublicKey]);
+}
+
+export const listenToMarketChanges = (
+    setMarketStatusChanged: React.Dispatch<React.SetStateAction<number>>,
+    programId: PublicKey
+)=> {
+    useEffect(() => {
+        const connection = getWSConnection("devnet");
+
+        const logSubscription = connection.onLogs(
+            programId,
+            async (logInfo) => {
+                console.log('Market status changed:', logInfo);
+                setMarketStatusChanged((prev) => prev + 1);  // Trigger UI update or state change
+            },
+            'confirmed'
+        );
+
+        return () => {
+            connection.removeOnLogsListener(logSubscription);
+        };
+    }, [programId, setMarketStatusChanged]);
 }

@@ -79,7 +79,6 @@ export default function MarketTradeSection({
         marketKey,
         program.programId,
         setReloadShares,
-        program,
         parser,
         handleNewPurchase
     )
