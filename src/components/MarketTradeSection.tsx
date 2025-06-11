@@ -81,39 +81,14 @@ export default function MarketTradeSection({
 
     }, [reloadMarket, yesPrice, noPrice, yesSharesOwned, noSharesOwned]);
 
-    const handleNewPurchase = useCallback(
+    const handleNewPurchaseBlockchainEvent = useCallback(
         async (event: { txSignature: string, transaction: any }) => {
             setReloadMarket((prev: any) => prev + 1);
             console.log('Transaction details:', event.transaction);
 
-            // Here, we are going to post the transactions to our supabase
-            const {data, error} = await supabase.from("bets").upsert(
-                [
-                    {
-                        tx_signature: event.txSignature,
-                        market_pubkey: marketKey,
-                        user_pubkey: wallet?.publicKey.toBase58(),
-                        purchased_outcome: selectedOutcome,
-                        amount_purchased: Number(event.transaction.wantedSharesPurchased) / 10 ** 9, // Convert from decimals to shares
-                        money_spent: Number(event.transaction.amount) / 10 ** 9,
-                        yes_price: yesPrice,
-                        no_price: noPrice,
-                    }
-                ],
-                {onConflict: "tx_signature",}
-            )
-
             // Set the remaining tokens for yes and no outcomes
             setYesRemainingTokens(Number(event.transaction.poolRemainingYesTokens));
             setNoRemainingTokens(Number(event.transaction.poolRemainingNoTokens));
-
-            if (error) {
-                if (error.code !== '42501') { // 42501 is a duplicate pk error which is fine for now
-                    console.error("Error inserting bet:", error);
-                }
-            } else {
-                console.log("Bet recorded successfully:", data);
-            }
 
         }, [setReloadMarket]);
 
@@ -123,7 +98,7 @@ export default function MarketTradeSection({
         program.programId,
         setReloadMarket,
         parser,
-        handleNewPurchase
+        handleNewPurchaseBlockchainEvent
     )
 
     // @ts-ignore
@@ -203,15 +178,61 @@ export default function MarketTradeSection({
                 .instruction();
             tx.add(instruction);
 
+            // Sign and send the transaction
             // @ts-ignore
             const provider = program.provider as AnchorProvider;
             const _sig = await provider.sendAndConfirm(tx);
+
+            // Confirm the transaction
+            const latestBlockHash = await connection.getLatestBlockhash();
+            await connection.confirmTransaction({
+                blockhash: latestBlockHash.blockhash,
+                lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+                signature: _sig
+            }, 'confirmed');
+
+            // Parse the transaction logs to find the purchased shares event
+            const blockchainConfirmation = await connection.getTransaction(_sig, {
+                commitment: 'confirmed',
+                maxSupportedTransactionVersion: 0,
+            });
+            const parsedEvents = [...parser.parseLogs(blockchainConfirmation?.meta?.logMessages || [])];
+            const purchasedEvent = parsedEvents.find(event => event.name === "purchasedOutcomeSharesEvent");
+            const transaction = purchasedEvent?.data;
+
+            // Log the transaction to our supabase
+            const {error} = await supabase.from("bets").upsert(
+                [
+                    {
+                        tx_signature: _sig,
+                        market_pubkey: marketKey,
+                        user_pubkey: wallet?.publicKey.toBase58(),
+                        purchased_outcome: selectedOutcome,
+                        amount_purchased: Number(transaction.wantedSharesPurchased) / 10 ** 9, // Convert from decimals to shares
+                        money_spent: Number(transaction.amount) / 10 ** 9,
+                        yes_price: yesPrice,
+                        no_price: noPrice,
+                    }
+                ],
+                {onConflict: "tx_signature",}
+            )
+
+            if (error) {
+                console.error("Error inserting bet:", error);
+            } else {
+                console.log("Bet recorded successfully");
+            }
+
+            // Set the remaining tokens for yes and no outcomes
+            setYesRemainingTokens(Number(transaction.poolRemainingYesTokens));
+            setNoRemainingTokens(Number(transaction.poolRemainingNoTokens));
 
             toast.success("Successfully purchased shares!");
             setPurchased(true);
             setReloadMarket((prev: any) => prev + 1); // Trigger reload of shares
             setAmount(0); // Reset amount after purchase
             setTimeout(() => setPurchased(false), 2500);
+
         } catch (err) {
             console.error("Purchase failed:", err);
             toast.error("Purchase failed.");
@@ -412,7 +433,7 @@ export default function MarketTradeSection({
                     <h3 className="text-lg font-semibold mb-4">Recent Trades</h3>
                     <ul className="custom-scroll space-y-1 h-[160px] overflow-y-auto pr-1">
                         <AnimatePresence initial={false}>
-                            {transactionDetails.slice(0, 25).map((trade, i) => (
+                            {transactionDetails.slice(0, 25).map((trade, _i) => (
                                 <motion.li
                                     key={trade.tx_signature} // ✅ Use unique key
                                     initial={{opacity: 0, y: 10}}
@@ -462,7 +483,11 @@ export default function MarketTradeSection({
                                 <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">
                                     Money Invested
                                 </div>
-                                <div className="text-xl font-semibold text-purple-400 mt-3">${moneyInvested.toLocaleString("en-US", {minimumFractionDigits: 3, maximumFractionDigits: 3})}</div>
+                                <div
+                                    className="text-xl font-semibold text-purple-400 mt-3">${moneyInvested.toLocaleString("en-US", {
+                                    minimumFractionDigits: 3,
+                                    maximumFractionDigits: 3
+                                })}</div>
                             </div>
 
                             <div className="bg-[#2a3646] rounded-lg p-4 shadow-inner border border-slate-700">
@@ -486,7 +511,10 @@ export default function MarketTradeSection({
                                     Profit / Loss
                                 </div>
                                 <div className={`text-xl font-semibold mt-3 ${profitMade >= 0 ?
-                                    "text-green-400" : "text-red-400"}`}>${profitMade.toLocaleString("en-US", {minimumFractionDigits: 3, maximumFractionDigits: 3})}</div>
+                                    "text-green-400" : "text-red-400"}`}>${profitMade.toLocaleString("en-US", {
+                                    minimumFractionDigits: 3,
+                                    maximumFractionDigits: 3
+                                })}</div>
                             </div>
                         </div>
                     </div>
