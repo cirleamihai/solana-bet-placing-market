@@ -7,7 +7,7 @@ export const getWSConnection = (cluster: string): Connection => {
     return new Connection(endpoint, 'confirmed');
 }
 
-export const listenToHeliusPurchaseSharesEvent = (
+export const listenToPurchaseSharesEventHelius = (
     marketKey: PublicKey,
     programId: PublicKey,
     setReloadShares: React.Dispatch<React.SetStateAction<number>>,
@@ -53,7 +53,7 @@ export const listenToHeliusPurchaseSharesEvent = (
     }, [marketKey, programId, handleNewPurchase]);
 };
 
-export const listenToHeliusAccountChange = (
+export const listenToAccountChangeHelius = (
     setAccountChange: React.Dispatch<React.SetStateAction<number>>,
     walletPublicKey: PublicKey,
 ) => {

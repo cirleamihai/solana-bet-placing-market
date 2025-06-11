@@ -3,14 +3,14 @@ import {Button} from "@/components/ui/button";
 import {useAnchorProgram} from "@/lib/anchor";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import {computePotentialShareProfit} from "@/blockchain/computePotentialShareProfit";
-import {Connection, PublicKey, Transaction} from "@solana/web3.js";
+import {PublicKey, Transaction} from "@solana/web3.js";
 import BN from "bn.js";
 import {getAssociatedTokenAddress, TOKEN_PROGRAM_ID} from "@solana/spl-token";
 import {USD_MINT} from "@/lib/constants";
 import {toast} from "sonner";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
 import {AnchorProvider, EventParser} from "@coral-xyz/anchor";
-import {getWSConnection, listenToHeliusPurchaseSharesEvent} from "@/blockchain/heliusEventListener";
+import {listenToPurchaseSharesEventHelius} from "@/blockchain/heliusEventListener";
 import {supabase} from "@/lib/supabase";
 
 const CONST_MAX_AMOUNT = 100_000_000; // 100 million
@@ -46,8 +46,8 @@ export default function MarketTradeSection({
         console.log('Transaction details:', event.transaction);
 
         // Set the remaining tokens for yes and no outcomes
-        setYesRemainingTokens(Number(event.transaction.poolRemainingYesTokens) / 10 ** 9);
-        setNoRemainingTokens(Number(event.transaction.poolRemainingNoTokens) / 10 ** 9);
+        setYesRemainingTokens(Number(event.transaction.poolRemainingYesTokens));
+        setNoRemainingTokens(Number(event.transaction.poolRemainingNoTokens));
 
         // Here, we are going to post the transactions to our supabase
         const { data, error } = await supabase.from("bets").upsert(
@@ -75,7 +75,7 @@ export default function MarketTradeSection({
     }, [setReloadShares]);
 
     // Listen to the Helius events for market updates
-    listenToHeliusPurchaseSharesEvent(
+    listenToPurchaseSharesEventHelius(
         marketKey,
         program.programId,
         setReloadShares,
@@ -140,8 +140,7 @@ export default function MarketTradeSection({
         const selectedMint = selectedOutcome === "yes" ? market.yesMint : market.noMint;
         const userUsdAccount = (await createAssociatedTokenAccounts(USD_MINT, wallet.publicKey, wallet, connection, ataInstructions)).ata;
         const {
-            ata,
-            account
+            ata
         } = await createAssociatedTokenAccounts(selectedMint, wallet.publicKey, wallet, connection, ataInstructions);
         const userOutcomeMintAccount = ata;
 
@@ -177,6 +176,7 @@ export default function MarketTradeSection({
             toast.success("Successfully purchased shares!");
             setPurchased(true);
             setReloadShares((prev) => prev + 1); // Trigger reload of shares
+            setAmount(0); // Reset amount after purchase
             setTimeout(() => setPurchased(false), 2500);
         } catch (err) {
             console.error("Purchase failed:", err);

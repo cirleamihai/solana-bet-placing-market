@@ -9,7 +9,7 @@ import {useAnchorProgram} from "@/lib/anchor";
 import {getAssociatedTokenAddress, getAccount, getMint} from "@solana/spl-token";
 import {toast} from "sonner";
 import {FiDollarSign} from 'react-icons/fi';
-import {listenToHeliusAccountChange} from "@/blockchain/heliusEventListener";
+import {listenToAccountChangeHelius} from "@/blockchain/heliusEventListener";
 
 interface HeaderProps {
     searchQuery?: string;
@@ -27,7 +27,7 @@ export default function Header({
     const [accountChanged, setAccountChanged] = useState(0);
 
     // Listen on the blockchain for any balance changes
-    listenToHeliusAccountChange(
+    listenToAccountChangeHelius(
         setAccountChanged,
         wallet?.publicKey || DUMMY_PUBKEY
     )
