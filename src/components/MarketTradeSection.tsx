@@ -13,6 +13,7 @@ import {AnchorProvider, EventParser} from "@coral-xyz/anchor";
 import {listenToPurchaseSharesEventHelius} from "@/blockchain/heliusEventListener";
 import {supabase} from "@/lib/supabase";
 import {motion, AnimatePresence} from "framer-motion";
+import {Frown} from "lucide-react";
 
 const CONST_MAX_AMOUNT = 100_000_000; // 100 million
 
@@ -363,7 +364,7 @@ export default function MarketTradeSection({
                         <ConnectWalletButton/>
                     </div>
                 ) : (
-                    <div className="flex flex-col mt-15">
+                    <div className="flex flex-col mt-21">
                         <div className="flex gap-6 justify-between">
                             <div className="bg-[#2f3e4e] px-5 py-3 rounded-xl shadow-inner border border-slate-700">
                                 <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
@@ -440,65 +441,73 @@ export default function MarketTradeSection({
             <div className="flex flex-col gap-2">
                 <div className="rounded-xl bg-[#1f2937] text-white p-6 shadow-md">
                     <h3 className="text-lg font-semibold mb-4">Recent Trades</h3>
-                    <ul className="custom-scroll space-y-1 h-[160px] overflow-y-auto pr-1">
-                        <AnimatePresence initial={false}>
-                            {transactionDetails.slice(0, 25).map((trade, _i) => (
-                                <motion.li
-                                    key={trade.tx_signature} // ✅ Use unique key
-                                    initial={{opacity: 0, y: 10}}
-                                    animate={{opacity: 1, y: 0}}
-                                    exit={{opacity: 0, y: -10}}
-                                    transition={{duration: 0.3, ease: "easeOut"}}
-                                    className="flex items-center border-b border-gray-700 px-2 py-[6px] rounded-md hover:bg-[#273447] transition duration-150 text-sm"
-                                >
-                                    {/* Timestamp */}
-                                    <div
-                                        className="text-xs text-blue-400 italic min-w-[100px] text-left pr-2 leading-none">
-                                        {new Date(trade.created_at).toLocaleString("en-US", {
-                                            year: "numeric",
-                                            month: "short",
-                                            day: "numeric",
-                                            hour: "2-digit",
-                                            minute: "2-digit",
-                                            second: "2-digit",
-                                            hour12: true,
-                                        })}
-                                    </div>
+                    {transactionDetails.length > 0 ? (
+                        <ul className="custom-scroll space-y-1 h-[160px] overflow-y-auto pr-1">
+                            <AnimatePresence initial={false}>
+                                {transactionDetails.slice(0, 25).map((trade, _i) => (
+                                    <motion.li
+                                        key={trade.tx_signature} // ✅ Use unique key
+                                        initial={{opacity: 0, y: 10}}
+                                        animate={{opacity: 1, y: 0}}
+                                        exit={{opacity: 0, y: -10}}
+                                        transition={{duration: 0.3, ease: "easeOut"}}
+                                        className="flex items-center border-b border-gray-700 px-2 py-[6px] rounded-md hover:bg-[#273447] transition duration-150 text-sm"
+                                    >
+                                        {/* Timestamp */}
+                                        <div
+                                            className="text-xs text-blue-400 italic min-w-[100px] text-left pr-2 leading-none">
+                                            {new Date(trade.created_at).toLocaleString("en-US", {
+                                                year: "numeric",
+                                                month: "short",
+                                                day: "numeric",
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                                second: "2-digit",
+                                                hour12: true,
+                                            })}
+                                        </div>
 
-                                    {/* Divider */}
-                                    <div
-                                        className="ml-auto h-[20px] w-[1px] bg-slate-600 mx-2 opacity-50 rounded"></div>
+                                        {/* Divider */}
+                                        <div
+                                            className="ml-auto h-[20px] w-[1px] bg-slate-600 mx-2 opacity-50 rounded"></div>
 
-                                    {/* Details */}
-                                    <div className="flex justify-between items-center flex-1 font-mono">
-                                        <div className="flex gap-2">
+                                        {/* Details */}
+                                        <div className="flex justify-between items-center flex-1 font-mono">
+                                            <div className="flex gap-2">
                                             <span
                                                 className="text-slate-300"
                                                 title={wallet?.publicKey.toBase58()}
                                             >
-                                              User {trade.user_pubkey.slice(0, 6)}...{trade.user_pubkey.slice(-4)}
+                                              User {trade.user_pubkey.slice(0, 4)}...{trade.user_pubkey.slice(-4)}
                                             </span>
 
-                                            <div
-                                                className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
-                                            <span className="min-w-[220px] inline-block font-mono text-slate-300">
+                                                <div
+                                                    className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
+                                                <span className="min-w-[220px] inline-block font-mono text-slate-300">
                                               Purchased {trade.amount_purchased.toFixed(2).toLocaleString()}{" "}
-                                                {trade.purchased_outcome[0].toUpperCase() + trade.purchased_outcome.slice(1)} shares
+                                                    {trade.purchased_outcome[0].toUpperCase() + trade.purchased_outcome.slice(1)} shares
                                             </span>
-                                            <div
-                                                className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
-                                            <span className="text-slate-300">
-                                              ${(trade.money_spent / trade.amount_purchased).toFixed(2)}/ share
+                                                <div
+                                                    className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
+                                                <span className="text-slate-300">
+                                              Average price ${(trade.money_spent / trade.amount_purchased).toFixed(2)}/ share
                                             </span>
-                                        </div>
-                                        <span className="text-slate-400 font-bold">
+                                            </div>
+                                            <span className="text-slate-400 font-bold">
                                           ${trade.money_spent.toFixed(2).toLocaleString()}
                                         </span>
-                                    </div>
-                                </motion.li>
-                            ))}
-                        </AnimatePresence>
-                    </ul>
+                                        </div>
+                                    </motion.li>
+                                ))}
+                            </AnimatePresence>
+                        </ul>
+                    ) : (
+                        <div className="h-[160px] flex flex-col items-center justify-center text-slate-400">
+                            <Frown className="w-20 h-20 mb-4"/>
+                            <h2 className="text-xl font-semibold">No trades yet.</h2>
+                            <p className="text-sm">Be the first one to trade!</p>
+                        </div>
+                    )}
                 </div>
 
                 {wallet?.publicKey && (
