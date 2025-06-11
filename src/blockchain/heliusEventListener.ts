@@ -52,3 +52,24 @@ export const listenToHeliusPurchaseSharesEvent = (
         };
     }, [marketKey, programId, handleNewPurchase]);
 };
+
+export const listenToHeliusAccountChange = (
+    setAccountChange: React.Dispatch<React.SetStateAction<number>>,
+    walletPublicKey: PublicKey,
+) => {
+    useEffect(() => {
+        const connection = getWSConnection("devnet");
+
+        const accountChangeSubscription = connection.onAccountChange(
+            walletPublicKey,
+            async (accountInfo, _context) => {
+                console.log('Account changed:', accountInfo);
+                setAccountChange((prev) => prev + 1);  // Trigger UI update or state change
+            }
+        )
+
+        return () => {
+            connection.removeAccountChangeListener(accountChangeSubscription);
+        }
+    }, [walletPublicKey]);
+}

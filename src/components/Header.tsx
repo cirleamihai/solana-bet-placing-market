@@ -3,12 +3,13 @@ import {useEffect, useState} from "react";
 import {Button} from "@/components/ui/button";
 import {Link} from "react-router-dom";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
-import {marketTopics, USD_MINT} from "@/lib/constants";
+import {DUMMY_PUBKEY, marketTopics, USD_MINT} from "@/lib/constants";
 import CreateMarketModal from "@/components/CreateMarket";
 import {useAnchorProgram} from "@/lib/anchor";
 import {getAssociatedTokenAddress, getAccount, getMint} from "@solana/spl-token";
 import {toast} from "sonner";
 import {FiDollarSign} from 'react-icons/fi';
+import {listenToHeliusAccountChange} from "@/blockchain/heliusEventListener";
 
 interface HeaderProps {
     searchQuery?: string;
@@ -23,6 +24,13 @@ export default function Header({
     const [modalOpen, setModalOpen] = useState(false);
     const [userBalance, setuserBalance] = useState<number | null>(null);
     const {wallet, connection} = useAnchorProgram()
+    const [accountChanged, setAccountChanged] = useState(0);
+
+    // Listen on the blockchain for any balance changes
+    listenToHeliusAccountChange(
+        setAccountChanged,
+        wallet?.publicKey || DUMMY_PUBKEY
+    )
 
     useEffect(() => {
         const fetchBalance = async () => {
@@ -51,7 +59,7 @@ export default function Header({
         };
 
         fetchBalance();
-    }, [wallet, connection]);
+    }, [wallet, connection, accountChanged]);
 
     return (
         <header className="bg-slate-800 text-white shadow-sm px-4 py-5">
@@ -82,7 +90,7 @@ export default function Header({
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    {userBalance !== null && (
+                    {userBalance !== null && wallet?.publicKey && (
                         <div
                             className="hidden md:flex items-center bg-gray-900 border border-gray-700 rounded-xl px-5 py-3 text-sm font-medium text-white shadow-lg hover:bg-gray-800 transition-colors duration-200">
                             <div className="flex-shrink-0 bg-green-500 rounded-full p-2">
