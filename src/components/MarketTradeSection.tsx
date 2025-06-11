@@ -16,16 +16,32 @@ import {motion, AnimatePresence} from "framer-motion";
 
 const CONST_MAX_AMOUNT = 100_000_000; // 100 million
 
+export interface TransactionDetails {
+    tx_signature: string;
+    market_pubkey: string;
+    user_pubkey: string;
+    purchased_outcome: "yes" | "no";
+    amount_purchased: number; // in shares
+    money_spent: number; // in USD
+    created_at: string; // ISO date string
+}
+
 interface TradeInfo {
     marketPool: any,
     market: any,
     marketKey: any,
+    reloadMarket: number,
+    setReloadMarket: (value: any) => void,
+    transactionDetails: TransactionDetails[]
 }
 
 export default function MarketTradeSection({
                                                marketPool,
                                                marketKey,
-                                               market
+                                               market,
+                                               reloadMarket,
+                                               setReloadMarket,
+                                               transactionDetails
                                            }: TradeInfo) {
     const {wallet, program, connection} = useAnchorProgram(); // Assuming you have a hook to get the wallet context
     const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">("yes");
@@ -35,16 +51,14 @@ export default function MarketTradeSection({
     const [purchased, setPurchased] = useState(false);
     const [yesSharesOwned, setYesSharesOwned] = useState(0);
     const [noSharesOwned, setNoSharesOwned] = useState(0);
-    const [reloadShares, setReloadShares] = useState(0);
     const [yesRemainingTokens, setYesRemainingTokens] = useState(0);
     const [noRemainingTokens, setNoRemainingTokens] = useState(0);
     const [parser, _setParser] = useState(new EventParser(program.programId, program.coder))
-    const [transactionDetails, setTransactionDetails] = useState<any[]>([]);
 
 
     const handleNewPurchase = useCallback(
         async (event: { txSignature: string, transaction: any }) => {
-            setReloadShares((prev) => prev + 1);
+            setReloadMarket((prev: any) => prev + 1);
             console.log('Transaction details:', event.transaction);
 
             // Set the remaining tokens for yes and no outcomes
@@ -74,13 +88,13 @@ export default function MarketTradeSection({
                 console.log("Bet recorded successfully:", data);
             }
 
-        }, [setReloadShares]);
+        }, [setReloadMarket]);
 
     // Listen to the Helius events for market updates
     listenToPurchaseSharesEventHelius(
         marketKey,
         program.programId,
-        setReloadShares,
+        setReloadMarket,
         parser,
         handleNewPurchase
     )
@@ -176,7 +190,7 @@ export default function MarketTradeSection({
 
             toast.success("Successfully purchased shares!");
             setPurchased(true);
-            setReloadShares((prev) => prev + 1); // Trigger reload of shares
+            setReloadMarket((prev: any) => prev + 1); // Trigger reload of shares
             setAmount(0); // Reset amount after purchase
             setTimeout(() => setPurchased(false), 2500);
         } catch (err) {
@@ -216,29 +230,7 @@ export default function MarketTradeSection({
         };
 
         loadShares();
-    }, [reloadShares]);
-
-    useEffect(() => {
-        const fetchDbMarketData = async () => {
-            if (!marketKey) return;
-
-            const {data, error} = await supabase
-                .from("bets")
-                .select()
-                .eq("market_pubkey", marketKey.toBase58())
-                .order("created_at", {ascending: false})
-
-            if (error) {
-                console.log("Error fetching market data:", error);
-                toast.error("Error fetching market data.");
-            }
-            // @ts-ignore
-            setTransactionDetails(data);
-
-        }
-
-        fetchDbMarketData();
-    }, [reloadShares]);
+    }, [reloadMarket]);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12 w-full  mx-auto">
@@ -401,7 +393,7 @@ export default function MarketTradeSection({
                     <h3 className="text-lg font-semibold mb-4">Recent Trades</h3>
                     <ul className="custom-scroll space-y-1 max-h-[160px] overflow-y-auto pr-1">
                         <AnimatePresence initial={false}>
-                            {transactionDetails.slice(0, 50).map((trade, i) => (
+                            {transactionDetails.slice(0, 25).map((trade, i) => (
                                 <motion.li
                                     key={trade.tx_signature} // ✅ Use unique key
                                     initial={{opacity: 0, y: 10}}
@@ -425,7 +417,8 @@ export default function MarketTradeSection({
                                     </div>
 
                                     {/* Divider */}
-                                    <div className="ml-auto h-[20px] w-[1px] bg-slate-600 mx-2 opacity-50 rounded"></div>
+                                    <div
+                                        className="ml-auto h-[20px] w-[1px] bg-slate-600 mx-2 opacity-50 rounded"></div>
 
                                     {/* Details */}
                                     <div className="flex justify-between items-center flex-1">

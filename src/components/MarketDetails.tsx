@@ -6,7 +6,7 @@ import {PublicKey, Transaction} from "@solana/web3.js";
 import {AnchorProvider} from "@coral-xyz/anchor";
 import {GridLoader} from "react-spinners";
 import MarketPriceChart from "@/components/MarketPriceChart";
-import MarketTradeSection from "@/components/MarketTradeSection";
+import MarketTradeSection, {TransactionDetails} from "@/components/MarketTradeSection";
 import {BN} from "@coral-xyz/anchor";
 import {USD_MINT} from "@/lib/constants";
 import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
@@ -30,12 +30,14 @@ export default function MarketDetails() {
     const [createdAt, setCreatedAt] = useState<string>("");
     const [_yesProb, setYesProb] = useState<number>(50);
     const [volume, setVolume] = useState<number>(0);
+    const [reloadMarket, setReloadMarket] = useState(0);
     const [liquidityEmptyModal, setLiquidityEmptyModal] = useState(false);
     const [depositAmount, setDepositAmount] = useState<string>("");
     const [somethingWrong, setSomethingWrong] = useState<string | null>(null);
     const [poolAccount, setPoolAccount] = useState<any>(null); // Replace 'any' with the actual type if known
     const [chartData, setChartData] = useState<ChartPoint[]>([]);
     const [submitting, setSubmitting] = useState(false);
+    const [transactionDetails, setTransactionDetails] = useState<TransactionDetails[]>([]);
 
     const handleInitialLiquidity = async () => {
         if (!wallet?.publicKey || !marketPubkey || !market) return;
@@ -198,6 +200,35 @@ export default function MarketDetails() {
         })();
     }, [marketPubkey, program]);
 
+    console.log(chartData)
+
+    useEffect(() => {
+        const fetchDbMarketData = async () => {
+            if (!marketPubkey) return;
+
+            const {data, error} = await supabase
+                .from("bets")
+                .select()
+                .eq("market_pubkey", marketPubkey)
+                .order("created_at", {ascending: false})
+
+            if (error) {
+                console.log("Error fetching market data:", error);
+                toast.error("Error fetching market data.");
+            }
+            // @ts-ignore
+            setTransactionDetails(data);
+            // if (data) {
+            //     setChartData(
+            //         // TODO: use a more efficient way to compute this
+            //     )
+            // }
+
+        }
+
+        fetchDbMarketData();
+    }, [reloadMarket]);
+
     if (loading) {
         return (
             <div className="flex justify-center items-center h-80">
@@ -252,6 +283,9 @@ export default function MarketDetails() {
                     marketPool={poolAccount}
                     marketKey={marketPubkey ? new PublicKey(marketPubkey) : null}
                     market={market}
+                    reloadMarket={reloadMarket}
+                    setReloadMarket={setReloadMarket}
+                    transactionDetails={transactionDetails}
                 />
             </div>
 
