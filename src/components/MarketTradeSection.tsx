@@ -34,7 +34,9 @@ interface TradeInfo {
     marketKey: any,
     reloadMarket: number,
     setReloadMarket: (value: any) => void,
-    transactionDetails: TransactionDetails[]
+    transactionDetails: TransactionDetails[],
+    setYesPrice: (price: number) => void,
+    setNoPrice: (price: number) => void
 }
 
 export default function MarketTradeSection({
@@ -43,7 +45,9 @@ export default function MarketTradeSection({
                                                market,
                                                reloadMarket,
                                                setReloadMarket,
-                                               transactionDetails
+                                               transactionDetails,
+                                               setYesPrice,
+                                               setNoPrice
                                            }: TradeInfo) {
     const {wallet, program, connection} = useAnchorProgram(); // Assuming you have a hook to get the wallet context
     const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">("yes");
@@ -66,6 +70,12 @@ export default function MarketTradeSection({
     const noLiquidity = noRemainingTokens ? noRemainingTokens : marketPool.noLiquidity?.toNumber?.() ?? 0;
     const yesPrice = yesLiquidity ? (noLiquidity / (yesLiquidity + noLiquidity)).toFixed(2) : 0.50.toFixed(2);
     const noPrice = noLiquidity ? (yesLiquidity / (yesLiquidity + noLiquidity)).toFixed(2) : 0.50.toFixed(2);
+
+    useEffect(() => {
+        console.log("Hey", yesPrice, noPrice)
+        setYesPrice(Number(yesPrice));
+        setNoPrice(Number(noPrice));
+    }, [reloadMarket, yesPrice, noPrice, yesRemainingTokens, noRemainingTokens]);
 
     useEffect(() => {
         const computeInvestmentPrice = () => {

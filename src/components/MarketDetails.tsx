@@ -32,6 +32,8 @@ export default function MarketDetails() {
     const [poolAccount, setPoolAccount] = useState<any>(null); // Replace 'any' with the actual type if known
     const [chartData, setChartData] = useState<ChartPoint[]>([]);
     const [submitting, setSubmitting] = useState(false);
+    const [yesPrice, setYesPrice] = useState<number>(-1);
+    const [noPrice, setNoPrice] = useState<number>(-1);
     const [transactionDetails, setTransactionDetails] = useState<TransactionDetails[]>([]);
 
     const handleInitialLiquidity = async () => {
@@ -198,23 +200,33 @@ export default function MarketDetails() {
                 console.log("Error fetching market data:", error);
                 toast.error("Error fetching market data.");
             }
-            // @ts-ignore
             if (data) {
                 setTransactionDetails(data);
-                setChartData(
-                    data.map((tx: TransactionDetails) => ({
-                        t: new Date(tx.created_at).getTime(), // Convert to milliseconds since epoch
-                        yesProb: (tx.yes_price).toFixed(2), // Assuming yes_prob is a field in your transaction data
-                        noProb: (tx.no_price).toFixed(2)
-                    }))
-                )
             }
-
-
         }
-
         fetchDbMarketData();
     }, [reloadMarket]);
+
+    useEffect(() => {
+        const computeChartData = () => {
+            console.log("Transaction details:", transactionDetails);
+            if (transactionDetails.length > 0) {
+                const dataForChart = transactionDetails.map((tx: TransactionDetails) => ({
+                    t: new Date(tx.created_at).getTime(), // Convert to milliseconds since epoch
+                    yesProb: (tx.yes_price).toFixed(2), // Assuming yes_prob is a field in your transaction data
+                    noProb: (tx.no_price).toFixed(2)
+                }));
+
+                const actualData = yesPrice >= 0 && noPrice >= 0 ? [
+                    {t: Date.now(), yesProb: yesPrice.toFixed(2), noProb: noPrice.toFixed(2)},
+                    ...dataForChart
+                ] : dataForChart;
+                setChartData(actualData);
+            }
+        }
+
+        computeChartData();
+    }, [reloadMarket, transactionDetails, yesPrice, noPrice]);
 
     if (loading) {
         return (
@@ -273,6 +285,8 @@ export default function MarketDetails() {
                     reloadMarket={reloadMarket}
                     setReloadMarket={setReloadMarket}
                     transactionDetails={transactionDetails}
+                    setYesPrice={setYesPrice}
+                    setNoPrice={setNoPrice}
                 />
             </div>
 
