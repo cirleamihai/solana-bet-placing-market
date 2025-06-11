@@ -1,7 +1,54 @@
-import { Connection,  } from '@solana/web3.js';
-import * as process from "node:process";
+import {Connection, PublicKey, Transaction,} from '@solana/web3.js';
+import React, {useEffect} from "react";
+import {EventParser, Program} from "@coral-xyz/anchor";
 
 export const getWSConnection = (cluster: string): Connection => {
-    const endpoint = `wss://api.${cluster}.helius-rpc.com/?api_key=${process.env.VITE_HELIUS_API_KEY}`;
+    const endpoint = `https://${cluster}.helius-rpc.com/?api-key=${import.meta.env.VITE_HELIUS_API_KEY}`;
     return new Connection(endpoint, 'confirmed');
 }
+
+export const listenToHeliusPurchaseSharesEvent = (
+    marketKey: PublicKey,
+    programId: PublicKey,
+    setReloadShares: React.Dispatch<React.SetStateAction<number>>,
+    program: Program,
+    parser: EventParser,
+    handleNewPurchase: (event: any) => void,  // Callback to handle new purchase events
+) => {
+
+    useEffect(() => {
+        if (!marketKey) return;
+
+        const connection = getWSConnection("devnet");
+
+        const logSubscription = connection.onLogs(
+            program.programId,
+            async (logInfo) => {
+                const parsedEvents = [...parser.parseLogs(logInfo.logs)];
+                for (const event of parsedEvents) {
+                    const {name: eventName, data: eventData} = event;
+                    if (eventName === "purchasedOutcomeSharesEvent") {
+                        handleNewPurchase({transaction: eventData, txSignature: logInfo.signature});          // ← your UI update
+                    }
+                }
+            },
+            'confirmed'
+        );
+
+        const accountSubscription = connection.onAccountChange(
+            marketKey,
+            (accountInfo, _context) => {
+                console.log('Market account changed:', accountInfo);
+                setReloadShares((prev) => prev + 1);
+            },
+            {
+                commitment: 'confirmed',
+            }
+        );
+
+        return () => {
+            connection.removeOnLogsListener(logSubscription);
+            connection.removeAccountChangeListener(accountSubscription);
+        };
+    }, [marketKey, programId, handleNewPurchase]);
+};
