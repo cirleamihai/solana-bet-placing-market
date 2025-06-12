@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import { PublicKey } from "@solana/web3.js";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { useAnchorProgram } from "@/lib/anchor";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import {useEffect, useMemo, useState} from "react";
+import {PublicKey} from "@solana/web3.js";
+import {useWallet} from "@solana/wallet-adapter-react";
+import {useAnchorProgram} from "@/lib/anchor";
+import {toast} from "sonner";
+import {Button} from "@/components/ui/button";
 import {
     PieChart,
     Pie,
@@ -16,22 +16,23 @@ import BN from "bn.js";
 import AddLiquidityForm from "@/components/AddLiquidityForm";
 import RemoveLiquidityForm from "@/components/RemoveLiquidityForm";
 import {AnimatePresence, motion} from "framer-motion";
+import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
+import {DUMMY_PUBKEY} from "@/lib/constants";
 
 type Props = {
-    marketKey: PublicKey | null;
+    market: any;
     poolAccount: any;            // on-chain pool PDA
     reloadMarket: number;
     setReloadMarket: (n: number) => void;
 };
 
 export default function LiquidityPoolSection({
-                                                 marketKey,
+                                                 market,
                                                  poolAccount,
                                                  reloadMarket,
                                                  setReloadMarket,
                                              }: Props) {
-    const { program } = useAnchorProgram();
-    const wallet = useWallet();
+    const {connection, wallet} = useAnchorProgram();
 
     const [action, setAction] = useState<"add" | "remove">("add");
     const [prevAction, setPrevAction] = useState<"add" | "remove">("add");
@@ -41,37 +42,37 @@ export default function LiquidityPoolSection({
     const [shares, setShares] = useState<number>(0);
     const [liquidityAdded, setLiquidityAdded] = useState(false);
     const [liquidityRemoved, setLiquidityRemoved] = useState(false);
+    const [reloadLiquidityPool, setReloadLiquidityPool] = useState(0);
 
-    /* ══════════════════ On-chain fetch of the caller’s share ══════════════════ */
     useEffect(() => {
         (async () => {
-            if (!wallet.publicKey || !marketKey) return;
-            try {
-                // PDA seeds mirror the program’s UserPosition struct, adjust if needed
-                const [userPositionPda] = PublicKey.findProgramAddressSync(
-                    [Buffer.from("user_position"), marketKey.toBuffer(), wallet.publicKey.toBuffer()],
-                    program.programId
-                );
-                // @ts-ignore – adapt type
-                const position = await program.account.userPosition.fetchNullable(
-                    userPositionPda
-                );
-                setUserShares(position?.liquidityShares.toNumber() ?? 0);
-            } catch (e) {
-                console.error("Failed to load user shares", e);
-                toast.error("Could not fetch your LP shares.");
+            if (!market || !wallet || !(wallet?.publicKey)) return;
+
+            const lpShareMint = market.lpShareMint;
+            const liquiditySharesAccount = (await createAssociatedTokenAccounts(
+                lpShareMint,
+                wallet?.publicKey,
+                wallet,
+                connection,
+                []
+            )).account
+
+            if (liquiditySharesAccount) {
+                const shares = Number(liquiditySharesAccount.amount) / 10 ** 9; // Convert from lamports to shares
+                setUserShares(shares);
+            } else {
+                setUserShares(0); // No token account found, balance will be set to 0 in that case
             }
         })();
-    }, [wallet.publicKey?.toBase58(), marketKey, reloadMarket]);
-
+    }, [wallet?.publicKey.toBase58(), market, reloadLiquidityPool]);
 
 
     const chartData = useMemo(() => {
         const total = poolAccount?.liquidityShares.toNumber() ?? 1;
         const mine = 4500;
         return [
-            { name: "You", value: mine },
-            { name: "Others", value: 10000 - mine },
+            {name: "You", value: mine},
+            {name: "Others", value: 10000 - mine},
         ];
     }, [userShares, poolAccount?.liquidityShares]);
 
@@ -87,8 +88,8 @@ export default function LiquidityPoolSection({
 
     // ───────────── animation variants ─────────────
     const cardVariants = {
-        add:    { backgroundColor: "#1f2937" },   // tailwind slate-800
-        remove: { backgroundColor: "#2e1065" },   // deep midnight-purple
+        add: {backgroundColor: "#1f2937"},   // tailwind slate-800
+        remove: {backgroundColor: "#2e1065"},   // deep midnight-purple
     };
 
     /* submit wrappers just dispatch the right RPC */
@@ -130,11 +131,11 @@ export default function LiquidityPoolSection({
                             stroke="none"
                         >
                             {/* keep two simple brand colours; tweak as desired */}
-                            <Cell fill="#00ffa3" />
-                            <Cell fill="#1a3970" />
+                            <Cell fill="#00ffa3"/>
+                            <Cell fill="#1a3970"/>
                         </Pie>
-                        <Tooltip formatter={(v: any) => `${v.toLocaleString()} shares`} />
-                        <Legend />
+                        <Tooltip formatter={(v: any) => `${v.toLocaleString()} shares`}/>
+                        <Legend/>
                     </PieChart>
                 </ResponsiveContainer>
             </div>
@@ -144,7 +145,7 @@ export default function LiquidityPoolSection({
                 variants={cardVariants}
                 animate={action}
                 initial={false}
-                transition={{ duration: 0.35 }}
+                transition={{duration: 0.35}}
                 className="rounded-xl text-white p-6 shadow-md relative min-h-[420px]"
             >
                 {/* Tabs */}
@@ -172,10 +173,10 @@ export default function LiquidityPoolSection({
                         {isAdd ? (
                             <motion.div
                                 key="add"
-                                initial={{ x: -50 * direction, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                exit={{ x: 50 * direction, opacity: 0 }}
-                                transition={{ duration: 0.3 }}
+                                initial={{x: -50 * direction, opacity: 0}}
+                                animate={{x: 0, opacity: 1}}
+                                exit={{x: 50 * direction, opacity: 0}}
+                                transition={{duration: 0.3}}
                                 className="absolute inset-0"
                             >
                                 <AddLiquidityForm
@@ -185,15 +186,16 @@ export default function LiquidityPoolSection({
                                     onSubmit={handleAdd}
                                     liquidityAdded={liquidityAdded}
                                     poolAccount={poolAccount}
+                                    userShares={userShares}
                                 />
                             </motion.div>
                         ) : (
                             <motion.div
                                 key="remove"
-                                initial={{ x: 50 * direction, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                exit={{ x: -50 * direction, opacity: 0 }}
-                                transition={{ duration: 0.3 }}
+                                initial={{x: 50 * direction, opacity: 0}}
+                                animate={{x: 0, opacity: 1}}
+                                exit={{x: -50 * direction, opacity: 0}}
+                                transition={{duration: 0.3}}
                                 className="absolute inset-0"
                             >
                                 <RemoveLiquidityForm
@@ -203,6 +205,7 @@ export default function LiquidityPoolSection({
                                     maxShares={userShares}
                                     onSubmit={handleRemove}
                                     liquidityRemoved={liquidityRemoved}
+                                    poolAccount={poolAccount}
                                 />
                             </motion.div>
                         )}

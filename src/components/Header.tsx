@@ -10,6 +10,7 @@ import {getAssociatedTokenAddress, getAccount, getMint} from "@solana/spl-token"
 import {toast} from "sonner";
 import {FiDollarSign} from 'react-icons/fi';
 import {listenToAccountChangeHelius} from "@/blockchain/heliusEventListener";
+import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
 
 interface HeaderProps {
     searchQuery?: string;
@@ -35,23 +36,16 @@ export default function Header({
     useEffect(() => {
         const fetchBalance = async () => {
             if (!wallet?.publicKey) return;
-            const associatedTokenAddress = await getAssociatedTokenAddress(
+            const usd_account = (await createAssociatedTokenAccounts(
                 USD_MINT,
                 wallet.publicKey,
-                false
-            )
+                wallet,
+                connection,
+                []
+            )).account
 
-            const mintInfo = await getMint(connection, USD_MINT).catch(() => null);
-            if (!mintInfo) {
-                toast.error("Failed to fetch USD mint information.");
-                return;
-            }
-
-
-            const tokenAccount = await getAccount(connection, associatedTokenAddress).catch(() => null);
-
-            if (tokenAccount) {
-                const balance = Number(tokenAccount.amount.toString()) / 10 ** mintInfo.decimals; // Convert from lamports to USD
+            if (usd_account) {
+                const balance = Number(usd_account.amount.toString()) / 10 ** 9; // Convert from lamports to USD
                 setuserBalance(balance);
             } else {
                 setuserBalance(0); // No token account found, balance will be set to 0 in that case

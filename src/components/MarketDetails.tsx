@@ -271,7 +271,7 @@ export default function MarketDetails() {
 
                 {poolAccount ? (
                     <LiquidityPoolSection
-                        marketKey={marketPubkey ? new PublicKey(marketPubkey) : null}
+                        market={market}
                         poolAccount={poolAccount}
                         reloadMarket={reloadMarket}
                         setReloadMarket={setReloadMarket}
