@@ -3,8 +3,14 @@ import {Button} from "@/components/ui/button";
 import {Cell, Pie, PieChart, ResponsiveContainer, Tooltip} from "recharts";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import {useWallet} from "@solana/wallet-adapter-react";
-import {PublicKey} from "@solana/web3.js";
+import {PublicKey, Transaction} from "@solana/web3.js";
 import {getRemoveLiquidityPotentialBenefits} from "@/blockchain/computeLiquidityBenefits";
+import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
+import {USD_MINT} from "@/lib/constants";
+import {AnchorProvider, BN} from "@coral-xyz/anchor";
+import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
+import {toast} from "sonner";
+import {useAnchorProgram} from "@/lib/anchor";
 
 type Props = {
     submitting: boolean;
@@ -34,11 +40,99 @@ export default function RemoveLiquidityForm({
     const [outcomeShares, setOutcomeShares] = useState<string>("0.00");
     const [_maxAmountReached, setMaxAmountReached] = useState(false);
     const [liquidityRemoved, setLiquidityRemoved] = useState(false);
-    const wallet = useWallet();
+    const {wallet, connection, program} = useAnchorProgram();
     const chartDataRef = useRef([]);
     const justPurchased = useRef(false);
     // const MAX_AMOUNT = maxShares;
     const MAX_AMOUNT = userShares;
+
+    const removeLiquidityBlockchain = async () => {
+        if (!wallet || !poolAccount || !poolAccount.liquidityShares) return;
+
+        setSubmitting(true);
+        const ataInstructions: any[] = []; // Instructions for creating associated token accounts
+
+        const userUsd = (await createAssociatedTokenAccounts(USD_MINT, wallet.publicKey, wallet, connection, ataInstructions)).ata;
+        // @ts-ignore
+        const userYes = (await createAssociatedTokenAccounts(market.yesMint, wallet.publicKey, wallet, connection, ataInstructions)).ata;
+        // @ts-ignore
+        const userNo = (await createAssociatedTokenAccounts(market.noMint, wallet.publicKey, wallet, connection, ataInstructions)).ata;
+        // @ts-ignore
+        const userLp = (await createAssociatedTokenAccounts(market.lpShareMint, wallet.publicKey, wallet, connection, ataInstructions)).ata;
+
+        const [poolPda] = PublicKey.findProgramAddressSync(
+            [Buffer.from("pool"), marketKey.toBuffer()],
+            program.programId
+        );
+
+        const [vaultPda] = PublicKey.findProgramAddressSync(
+            [Buffer.from("vault"), marketKey.toBuffer()],
+            program.programId
+        );
+
+        const [yesLiquidityPda] = PublicKey.findProgramAddressSync(
+            [Buffer.from("yes_liquidity_pool"), marketKey.toBuffer()],
+            program.programId
+        );
+
+        const [noLiquidityPda] = PublicKey.findProgramAddressSync(
+            [Buffer.from("no_liquidity_pool"), marketKey.toBuffer()],
+            program.programId
+        );
+
+        try {
+            const tx = new Transaction();
+            ataInstructions.length > 0 && tx.add(...ataInstructions);
+
+            const ix = await program.methods
+                .removeLiquidity(new BN(Number(sharesToRemove) * 10 ** 9))
+                .accounts({
+                    pool: poolPda,
+                    market: marketKey,
+                    vault: vaultPda,
+                    // @ts-ignore
+                    yesMint: market.yesMint,
+                    // @ts-ignore
+                    noMint: market.noMint,
+                    // @ts-ignore
+                    lpShareMint: market.lpShareMint,
+                    userUsdAccount: userUsd,
+                    userYesAccount: userYes,
+                    userNoAccount: userNo,
+                    userLpShareAccount: userLp,
+                    liquidityYesTokensAccount: yesLiquidityPda,
+                    liquidityNoTokensAccount: noLiquidityPda,
+                    user: wallet.publicKey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            tx.add(ix);
+
+
+            // @ts-ignore
+            const provider = program.provider as AnchorProvider;
+            const _sig = await provider.sendAndConfirm(tx);
+
+            toast.success("Liquidity removed successfully!")
+            justPurchased.current = true;
+            setReloadMarket((prev) => prev + 1);
+            setReloadLiquidityPool((prev) => prev + 1);
+            setLiquidityRemoved(true);
+            setTimeout(() => {
+                setLiquidityRemoved(false);
+                justPurchased.current = false;
+            }, 2500);
+        } catch (error) {
+            // @ts-ignore
+            console.log(error.getLogs());
+            toast.error("Failed to remove liquidity. Please try again.")
+        } finally {
+            setSubmitting(false);
+            setSharesToRemove(0);
+            setUsdToReceiveForLPShares(0);
+        }
+    }
 
     const handleAddAmount = (value: number) => {
         if (sharesToRemove + value < MAX_AMOUNT) {
@@ -86,7 +180,6 @@ export default function RemoveLiquidityForm({
             sharesToRemove
         )
         setUsdToReceiveForLPShares(liquidityBenefits.moneyToReceive);
-
 
 
         const outcomeShares = liquidityBenefits.yesShares ?
@@ -142,7 +235,7 @@ export default function RemoveLiquidityForm({
             </div>
 
 
-            {wallet.connected ? (
+            {wallet?.publicKey ? (
                 <div className="mt-12">
                     {/* ── Chart & Shares Grid ── */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -237,14 +330,55 @@ export default function RemoveLiquidityForm({
 
                         </div>
                     </div>
-
                     <Button
-                        className={`w-full h-12 text-xl cursor-pointer font-semibold ${liquidityRemoved ? "bg-green-600 hover:bg-green-700" : "bg-[#630287] hover:bg-[#3f0164]"}`}
+                        className={`w-full h-12 text-xl font-semibold cursor-pointer ${
+                            liquidityRemoved
+                                ? "bg-green-600 hover:bg-green-700"
+                                : "bg-[#630287] hover:bg-[#3f0164]"
+                        }`}
                         disabled={submitting || sharesToRemove <= 0}
-                        onClick={() => {
-                        }}
+                        onClick={removeLiquidityBlockchain}
                     >
-                        {submitting ? "Submitting…" : "Remove Liquidity"}
+                        {liquidityRemoved ? (
+                            <div className="flex items-center justify-center gap-2">
+                                <svg
+                                    className="h-5 w-5 text-white"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={3}
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                Liquidity Removed!
+                            </div>
+                        ) : submitting ? (
+                            <div className="flex items-center justify-center gap-2">
+                                <svg
+                                    className="animate-spin h-5 w-5 text-white"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                    ></circle>
+                                    <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"
+                                    ></path>
+                                </svg>
+                                Removing liquidity…
+                            </div>
+                        ) : (
+                            "Remove Liquidity"
+                        )}
                     </Button>
                 </div>
             ) : (

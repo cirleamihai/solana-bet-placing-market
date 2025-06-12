@@ -41,7 +41,6 @@ export default function LiquidityPoolSection({
     const [prevAction, setPrevAction] = useState<"add" | "remove">("add");
     const [submitting, setSubmitting] = useState(false);
     const [userShares, setUserShares] = useState<number>(0);
-    const [liquidityRemoved, _setLiquidityRemoved] = useState(false);
 
     useEffect(() => {
         (async () => {

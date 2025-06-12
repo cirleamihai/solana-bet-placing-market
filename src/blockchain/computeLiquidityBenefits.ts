@@ -1,9 +1,10 @@
 export const getAddLiquidityPotentialBenefits = (
-    liquidityValue: number,
+    liquidityShares: number,
     yesLiquidity: number,
     noLiquidity: number,
     moneyToAdd: number,
 ) => {
+    console.log(yesLiquidity * 10 ** 9, noLiquidity * 10 ** 9)
     if (yesLiquidity === noLiquidity || moneyToAdd == 0) {
         return {
             lpShares: moneyToAdd,
@@ -27,7 +28,7 @@ export const getAddLiquidityPotentialBenefits = (
     }
 
     const newCorrectLiquidityValue = Math.sqrt(newSharesYes * newSharesNo);
-    const userBelongingLpShares = newCorrectLiquidityValue - liquidityValue;
+    const userBelongingLpShares = newCorrectLiquidityValue - liquidityShares;
     if (newYesLiquidity < newNoLiquidity) {
         return {
             lpShares: userBelongingLpShares,
@@ -44,7 +45,7 @@ export const getAddLiquidityPotentialBenefits = (
 }
 
 export const getRemoveLiquidityPotentialBenefits = (
-    liquidityValue: number,
+    liquidityShares: number,
     yesLiquidity: number,
     noLiquidity: number,
     sharesToRemove: number,
@@ -60,7 +61,7 @@ export const getRemoveLiquidityPotentialBenefits = (
     const lowestOutcomeShares = Math.max(yesLiquidity, noLiquidity);
     const yesPrice = noLiquidity / (yesLiquidity + noLiquidity);
     const noPrice = yesLiquidity / (yesLiquidity + noLiquidity);
-    const liquiditySharesUSDValue = liquidityValue / lowestOutcomeShares * sharesToRemove;
+    const liquiditySharesUSDValue = liquidityShares / lowestOutcomeShares * sharesToRemove;
 
     yesLiquidity -= liquiditySharesUSDValue;
     noLiquidity -= liquiditySharesUSDValue;

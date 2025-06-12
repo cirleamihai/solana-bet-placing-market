@@ -97,7 +97,6 @@ export default function AddLiquidityForm({
             [Buffer.from("no_liquidity_pool"), marketKey.toBuffer()],
             program.programId
         );
-        console.log("Got here.")
 
         try {
             const tx = new Transaction();
