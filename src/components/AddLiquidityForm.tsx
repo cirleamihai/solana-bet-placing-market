@@ -10,6 +10,7 @@ import {PublicKey, Transaction} from "@solana/web3.js";
 import {AnchorProvider, BN} from "@coral-xyz/anchor";
 import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
 import {toast} from "sonner";
+import {useMarketContext} from "@/components/MarketContext";
 
 type Props = {
     submitting: boolean;
@@ -23,7 +24,7 @@ type Props = {
     market: any,
 };
 
-const MAX_AMOUNT = 100_000_000; // 100 million
+const CONST_MAX_AMOUNT = 100_000_000; // 100 million
 
 export default function AddLiquidityForm({
                                              submitting,
@@ -36,6 +37,7 @@ export default function AddLiquidityForm({
                                              market,
                                              reloadMarket,
                                          }: Props) {
+    const {userBalance} = useMarketContext();
     const [amount, setAmount] = useState<number>(0);
     const [_maxAmountReached, setMaxAmountReached] = useState(false);
     const [liquidityShares, setLiquidityShares] = useState<number>(0);
@@ -44,6 +46,7 @@ export default function AddLiquidityForm({
     const [liquidityAdded, setLiquidityAdded] = useState(false);
     const chartDataRef = useRef([]);
     const justPurchased = useRef(false);
+    const MAX_AMOUNT = wallet?.publicKey ? userBalance : CONST_MAX_AMOUNT;
 
     const handleAddAmount = (value: number) => {
         if (amount + value < MAX_AMOUNT) {
@@ -281,7 +284,7 @@ export default function AddLiquidityForm({
                                         </ResponsiveContainer>
                                     </div>
                                     {/* Legend on the right */}
-                                    <div className="ml-1 space-y-2">
+                                    <div className="ml-0 space-y-2">
                                         {chartData.map((entry, idx) => (
                                             <div key={entry.name} className="flex items-center text-slate-200">
                                           <span

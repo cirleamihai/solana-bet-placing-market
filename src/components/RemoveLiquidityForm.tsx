@@ -269,7 +269,7 @@ export default function RemoveLiquidityForm({
                                     </ResponsiveContainer>
                                 </div>
                                 {/* Legend on the right */}
-                                <div className="ml-6 space-y-2">
+                                <div className="ml-0 space-y-2">
                                     {chartData.map((entry, idx) => (
                                         <div key={entry.name} className="flex items-center text-slate-200">
                                           <span

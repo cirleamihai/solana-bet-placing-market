@@ -86,8 +86,6 @@ export default function MarketDetails() {
                 const no = Number(poolAcct?.noLiquidity ?? 0);
                 const totalVol = Number(poolAcct?.usdCollateral ?? 0) / 10 ** 9;
                 const prob = yes + no ? Math.floor((yes / (yes + no)) * 100) : 50;
-                console.log("Liquidity Value is: ", Number(poolAcct.liquidityValue) / 10 ** 9);
-                console.log("Liquidity Shares are: ", Number(poolAcct.liquidityShares) / 10 ** 9);
 
                 setYesProb(prob);
                 setVolume(totalVol);

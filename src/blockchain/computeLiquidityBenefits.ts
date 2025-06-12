@@ -4,7 +4,6 @@ export const getAddLiquidityPotentialBenefits = (
     noLiquidity: number,
     moneyToAdd: number,
 ) => {
-    console.log(yesLiquidity * 10 ** 9, noLiquidity * 10 ** 9)
     if (yesLiquidity === noLiquidity || moneyToAdd == 0) {
         return {
             lpShares: moneyToAdd,

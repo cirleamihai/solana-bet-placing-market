@@ -14,6 +14,7 @@ import {listenToPurchaseSharesEventHelius} from "@/blockchain/heliusEventListene
 import {supabase} from "@/lib/supabase";
 import {motion, AnimatePresence} from "framer-motion";
 import {Frown} from "lucide-react";
+import {useMarketContext} from "@/components/MarketContext";
 
 const CONST_MAX_AMOUNT = 100_000_000; // 100 million
 
@@ -62,6 +63,7 @@ export default function MarketTradeSection({
     const [noRemainingTokens, setNoRemainingTokens] = useState(0);
     const [moneyInvested, setMoneyInvested] = useState(0);
     const [profitMade, setProfitMade] = useState(0);
+    const {userBalance} = useMarketContext();
     const [parser, _setParser] = useState(new EventParser(program.programId, program.coder))
 
     // Convert BN to numbers (if needed)
@@ -112,7 +114,7 @@ export default function MarketTradeSection({
     )
 
     // @ts-ignore
-    let MAX_AMOUNT = CONST_MAX_AMOUNT;
+    let MAX_AMOUNT = wallet?.publicKey ? userBalance : CONST_MAX_AMOUNT;
 
     const handleAddAmount = (value: number) => {
         if (amount + value < MAX_AMOUNT) {

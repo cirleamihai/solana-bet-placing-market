@@ -11,6 +11,7 @@ import {toast} from "sonner";
 import {FiDollarSign} from 'react-icons/fi';
 import {listenToAccountChangeHelius} from "@/blockchain/heliusEventListener";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
+import {useMarketContext} from "@/components/MarketContext";
 
 interface HeaderProps {
     searchQuery?: string;
@@ -23,7 +24,7 @@ export default function Header({
                                    },
                                }: HeaderProps) {
     const [modalOpen, setModalOpen] = useState(false);
-    const [userBalance, setuserBalance] = useState<number | null>(null);
+    const {userBalance, setUserBalance} = useMarketContext();
     const {wallet, connection} = useAnchorProgram()
     const [accountChanged, setAccountChanged] = useState(0);
 
@@ -46,9 +47,9 @@ export default function Header({
 
             if (usd_account) {
                 const balance = Number(usd_account.amount.toString()) / 10 ** 9; // Convert from lamports to USD
-                setuserBalance(balance);
+                setUserBalance(balance);
             } else {
-                setuserBalance(0); // No token account found, balance will be set to 0 in that case
+                setUserBalance(0); // No token account found, balance will be set to 0 in that case
             }
         };
 
