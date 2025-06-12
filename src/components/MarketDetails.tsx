@@ -1,25 +1,19 @@
 import {useEffect, useState} from "react";
-import {useNavigate, useParams} from "react-router-dom";
+import {useParams} from "react-router-dom";
 import {useAnchorProgram} from "@/lib/anchor";
 import {supabase} from "@/lib/supabase";
-import {PublicKey, Transaction} from "@solana/web3.js";
-import {AnchorProvider} from "@coral-xyz/anchor";
+import {PublicKey} from "@solana/web3.js";
 import {GridLoader} from "react-spinners";
 import MarketPriceChart, {ChartPoint} from "@/components/MarketPriceChart";
 import MarketTradeSection, {TransactionDetails} from "@/components/MarketTradeSection";
-import {BN} from "@coral-xyz/anchor";
-import {USD_MINT} from "@/lib/constants";
-import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
 import {toast} from "sonner";
-import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
 import {Button} from "@/components/ui/button";
-import AddLiquidityModal from "@/components/AddLiquidityModal";
+import AddInitialLiquidityModal from "@/components/AddInitialLiquidityModal";
 
 export default function MarketDetails() {
     const {marketPubkey} = useParams();          // ← from route
-    const navigate = useNavigate(); // for closing modals
 
-    const {program, wallet, connection} = useAnchorProgram();
+    const {program} = useAnchorProgram();
     const [market, setMarket] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [question, setQuestion] = useState<string>("");
@@ -29,7 +23,6 @@ export default function MarketDetails() {
     const [reloadMarket, setReloadMarket] = useState(0);
     const [liquidityEmptyModal, setLiquidityEmptyModal] = useState(false);
     const [wantsToAddLiquidity, setWantsToAddLiquidity] = useState(false);
-    const [depositAmount, setDepositAmount] = useState<string>("");
     const [somethingWrong, setSomethingWrong] = useState<string | null>(null);
     const [poolAccount, setPoolAccount] = useState<any>(null); // Replace 'any' with the actual type if known
     const [chartData, setChartData] = useState<ChartPoint[]>([]);
@@ -243,20 +236,21 @@ export default function MarketDetails() {
                             viewBox="0 0 64 64"
                         >
                             <defs>
-                                {/* Coin gradient */}<radialGradient id="coinGrad" cx="50%" cy="50%" r="50%">
-                                <stop offset="0%" stopColor="#003366" />
-                                <stop offset="10%" stopColor="#001933" />
-                            </radialGradient>
+                                {/* Coin gradient */}
+                                <radialGradient id="coinGrad" cx="50%" cy="50%" r="50%">
+                                    <stop offset="0%" stopColor="#003366"/>
+                                    <stop offset="10%" stopColor="#001933"/>
+                                </radialGradient>
 
                                 {/* Solana logo gradient */}
                                 <linearGradient id="solGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-                                    <stop offset="0%" stopColor="#00ffa3" />
-                                    <stop offset="100%" stopColor="#dc1fff" />
+                                    <stop offset="0%" stopColor="#00ffa3"/>
+                                    <stop offset="100%" stopColor="#dc1fff"/>
                                 </linearGradient>
                             </defs>
 
                             {/* Outer coin circle */}
-                            <circle cx="32" cy="32" r="30" fill="url(#coinGrad)" />
+                            <circle cx="32" cy="32" r="30" fill="url(#coinGrad)"/>
 
                             {/* Solana logo: three slanted bars */}
                             {/** Each bar is a parallelogram rotated slightly */}
@@ -287,20 +281,17 @@ export default function MarketDetails() {
                 </div>
 
 
-
             </div>
-            {(liquidityEmptyModal  || wantsToAddLiquidity) && (
-                <AddLiquidityModal
+            {(liquidityEmptyModal || wantsToAddLiquidity) && (
+                <AddInitialLiquidityModal
                     marketPubkey={marketPubkey || ""}
                     market={market}
-                    wantsToAddLiquidity={wantsToAddLiquidity}
                     setWantsToAddLiquidity={setWantsToAddLiquidity}
-                    liquidityEmptyModal={liquidityEmptyModal}
                     setLiquidityEmptyModal={setLiquidityEmptyModal}
                     submitting={submitting}
                     setSubmitting={setSubmitting}
                 />
-                )}
+            )}
         </main>
     );
 }

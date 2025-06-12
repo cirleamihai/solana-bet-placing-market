@@ -12,21 +12,18 @@ import {useState} from "react";
 interface Props {
     marketPubkey: string;
     market: any;
-    liquidityEmptyModal: boolean;
     setLiquidityEmptyModal: (value: boolean) => void;
-    wantsToAddLiquidity: boolean;
     setWantsToAddLiquidity: (value: boolean) => void;
     submitting: boolean;
     setSubmitting: (value: boolean) => void;
 }
 
-export default function AddLiquidityModal({
+export default function AddInitialLiquidityModal({
                                               marketPubkey,
                                               market,
                                               setLiquidityEmptyModal,
                                               submitting,
                                               setSubmitting,
-
                                           }: Props) {
     const {wallet, connection, program} = useAnchorProgram();
     const navigate = useNavigate();
