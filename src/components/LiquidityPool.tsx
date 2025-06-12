@@ -168,7 +168,7 @@ export default function LiquidityPoolSection({
                 </div>
 
                 {/* ─ Slide-animated form switching ─ */}
-                <div className="relative h-fit min-h-[180px]">
+                <div className="relative items-stretch">
                     <AnimatePresence mode="sync" initial={false}>
                         {isAdd ? (
                             <motion.div
@@ -185,6 +185,7 @@ export default function LiquidityPoolSection({
                                     submitting={submitting}
                                     onSubmit={handleAdd}
                                     liquidityAdded={liquidityAdded}
+                                    poolAccount={poolAccount}
                                 />
                             </motion.div>
                         ) : (
