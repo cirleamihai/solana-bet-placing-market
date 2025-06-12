@@ -5,6 +5,8 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 declare_id!("3waVbK9Pps4X1ZwS5GbwDQKmX5syrwe6guwnyN3YJfRc");
 
+const SCALE: u128 = 1_000_000_000; // 9 decimals
+
 #[program]
 pub mod solana_bet_placing_market {
     use super::*;
@@ -37,7 +39,7 @@ pub mod solana_bet_placing_market {
         market.vault = ctx.accounts.vault.key();
         market.authority = ctx.accounts.authority.key();
         market.market_number = market_factory.created_markets;
-        market.oracle = oracle_key;  // This is the external resolver
+        market.oracle = oracle_key; // This is the external resolver
         market.bump = ctx.bumps.market;
         market.outcome = None;
         market.resolved = false;
@@ -69,15 +71,17 @@ pub mod solana_bet_placing_market {
     }
 
     pub fn resolve_market(ctx: Context<ResolveMarket>, outcome: u8) -> Result<()> {
-        require!(ctx.accounts.market.resolved == false, MarketError::MarketResolved);
+        require!(
+            ctx.accounts.market.resolved == false,
+            MarketError::MarketResolved
+        );
         require!(outcome == 0 || outcome == 1, MarketError::InvalidOutcome);
-
 
         // Set the outcome and mark the market as resolved
         ctx.accounts.market.outcome = Some(outcome);
         ctx.accounts.market.resolved = true;
 
-        emit!(MarketResolvedEvent{
+        emit!(MarketResolvedEvent {
             market: ctx.accounts.market.key(),
             solver: ctx.accounts.oracle.key(),
             outcome,
@@ -89,7 +93,10 @@ pub mod solana_bet_placing_market {
     #[inline(never)]
     pub fn add_liquidity(ctx: Context<PoolLiquidity>, usd_amount: u64) -> Result<()> {
         require!(usd_amount > 0, MarketError::Zero);
-        require!(ctx.accounts.market.resolved == false, MarketError::MarketResolved);
+        require!(
+            ctx.accounts.market.resolved == false,
+            MarketError::MarketResolved
+        );
 
         // let pool = &mut ctx.accounts.pool;
         // let market = &ctx.accounts.market;
@@ -112,8 +119,21 @@ pub mod solana_bet_placing_market {
             add_liquidity_equal_outcomes(ctx.accounts, usd_amount)?;
         } else {
             let total_tokens = ctx.accounts.pool.yes_liquidity + ctx.accounts.pool.no_liquidity;
-            let yes_token_price = ctx.accounts.pool.yes_liquidity / total_tokens;
-            let no_token_price = ctx.accounts.pool.no_liquidity / total_tokens;
+            let yes_token_price =
+                ((ctx.accounts.pool.no_liquidity as u128) * SCALE / (total_tokens as u128)) as u64;
+            let no_token_price =
+                ((ctx.accounts.pool.yes_liquidity as u128) * SCALE / (total_tokens as u128)) as u64;
+
+            msg!(
+                "Yes token price: {}, No token price: {}",
+                yes_token_price,
+                no_token_price
+            );
+            msg!(
+                "Pool No Liquidity: {}, Pool Yes Liquidity: {}",
+                ctx.accounts.pool.no_liquidity,
+                ctx.accounts.pool.yes_liquidity
+            );
 
             // Otherwise, we have to decide how to share the liquidity
             if ctx.accounts.pool.no_liquidity > ctx.accounts.pool.yes_liquidity {
@@ -140,12 +160,16 @@ pub mod solana_bet_placing_market {
     }
 
     pub fn remove_liquidity(ctx: Context<PoolLiquidity>, shares: u64) -> Result<()> {
+        msg!("Shares to remove: {}. User remaining balance: {}", shares, ctx.accounts.user_lp_share_account.amount);
         require!(
-            shares < ctx.accounts.user_lp_share_account.amount,
+            shares <= ctx.accounts.user_lp_share_account.amount,
             MarketError::InsufficientFunds
         );
         require!(shares > 0, MarketError::Zero);
-        require!(ctx.accounts.market.resolved == false, MarketError::MarketResolved);
+        require!(
+            ctx.accounts.market.resolved == false,
+            MarketError::MarketResolved
+        );
 
         // The first thing we are going to do is to burn the user's shares
         // and remove them from the pool
@@ -170,18 +194,18 @@ pub mod solana_bet_placing_market {
         if ctx.accounts.market.resolved == false {
             // Then we are going to calculate what share is the least probable outcome
             let (
-                mut lowest_outcome,
-                mut highest_outcome,
+                mut highest_liquidity,
+                mut lowest_liquidity,
                 liquidity_outcome_token_account,
                 user_outcome_token_account,
-                lowest_outcome_mint
-            ) = if ctx.accounts.pool.yes_liquidity > ctx.accounts.pool.no_liquidity {
+                lowest_outcome_mint,
+            ) = if ctx.accounts.pool.yes_liquidity < ctx.accounts.pool.no_liquidity {
                 (
                     ctx.accounts.pool.no_liquidity,
                     ctx.accounts.pool.yes_liquidity,
                     &ctx.accounts.liquidity_no_tokens_account,
                     &ctx.accounts.user_no_account,
-                    &ctx.accounts.no_mint
+                    &ctx.accounts.no_mint,
                 )
             } else {
                 (
@@ -189,17 +213,17 @@ pub mod solana_bet_placing_market {
                     ctx.accounts.pool.no_liquidity,
                     &ctx.accounts.liquidity_yes_tokens_account,
                     &ctx.accounts.user_yes_account,
-                    &ctx.accounts.yes_mint
+                    &ctx.accounts.yes_mint,
                 )
             };
 
             // Compute the price aswell
-            let lowest_price = highest_outcome / (lowest_outcome + highest_outcome);
-            let highest_price = lowest_outcome / (lowest_outcome + highest_outcome);
+            let total_price = highest_liquidity as u128 + lowest_liquidity as u128;
+            let lowest_price = (lowest_liquidity as u128 * SCALE / total_price) as u64;
+            let highest_price = (highest_liquidity as u128 * SCALE / total_price) as u64;
 
-            let liquidity_shares_value = (ctx.accounts.pool.liquidity_value as u128
-                / (lowest_outcome as u128 * shares as u128))
-                as u64;
+            let liquidity_shares_value = ((ctx.accounts.pool.liquidity_value as u128
+                * shares as u128) / highest_liquidity as u128) as u64;
 
             // We are transferring OUT from the vault, the shares value
             transfer_outcome(
@@ -217,12 +241,20 @@ pub mod solana_bet_placing_market {
             )?;
 
             // Burn the yes tokens that are not backed by collateral anymore
+            // Sometimes, due to rounding errors, the yes liquidity can be less than the
+            // liquidity shares value, so we need to always burn the existent quantity.
+            let diff = ctx.accounts.pool.yes_liquidity as i128 - liquidity_shares_value as i128;
+            let yes_tokens_to_burn = if diff < 0 && diff.abs() < SCALE as i128 {
+                ctx.accounts.pool.yes_liquidity
+            } else {
+                liquidity_shares_value
+            };
             burn_mint_tokens(
                 &ctx.accounts.yes_mint,
                 &ctx.accounts.liquidity_yes_tokens_account,
                 &ctx.accounts.market,
                 &ctx.accounts.token_program,
-                liquidity_shares_value,
+                yes_tokens_to_burn,
                 &[&[
                     b"market",
                     ctx.accounts.market.authority.as_ref(),
@@ -232,12 +264,18 @@ pub mod solana_bet_placing_market {
             )?;
 
             // Burn the no tokens that are not backed by collateral anymore
+            let diff = ctx.accounts.pool.no_liquidity as i128 - liquidity_shares_value as i128;
+            let no_tokens_to_burn = if diff < 0 && diff.abs() < SCALE as i128 {
+                ctx.accounts.pool.no_liquidity
+            } else {
+                liquidity_shares_value
+            };
             burn_mint_tokens(
                 &ctx.accounts.no_mint,
                 &ctx.accounts.liquidity_no_tokens_account,
                 &ctx.accounts.market,
                 &ctx.accounts.token_program,
-                liquidity_shares_value,
+                no_tokens_to_burn,
                 &[&[
                     b"market",
                     ctx.accounts.market.authority.as_ref(),
@@ -250,17 +288,23 @@ pub mod solana_bet_placing_market {
             ctx.accounts.pool.usd_collateral -= liquidity_shares_value;
             ctx.accounts.pool.liquidity_value -= liquidity_shares_value;
             ctx.accounts.pool.liquidity_shares -= shares;
-            ctx.accounts.pool.yes_liquidity -= liquidity_shares_value;
-            ctx.accounts.pool.no_liquidity -= liquidity_shares_value;
-            ctx.accounts.pool.total_yes_mints -= liquidity_shares_value;
-            ctx.accounts.pool.total_no_mints -= liquidity_shares_value;
+            ctx.accounts.pool.yes_liquidity -= yes_tokens_to_burn;
+            ctx.accounts.pool.no_liquidity -= no_tokens_to_burn;
+            ctx.accounts.pool.total_yes_mints -= yes_tokens_to_burn;
+            ctx.accounts.pool.total_no_mints -= no_tokens_to_burn;
 
-            lowest_outcome -= liquidity_shares_value;
-            highest_outcome -= liquidity_shares_value;
+            highest_liquidity = highest_liquidity.saturating_sub(liquidity_shares_value);
+            lowest_liquidity = lowest_liquidity.saturating_sub(liquidity_shares_value);
 
-            let remaining_lowest_outcome =
-                ((highest_outcome as u128 * highest_price as u128) / lowest_price as u128) as u64;
-            let user_belonging_lowest_outcome = lowest_outcome - remaining_lowest_outcome;
+            let remaining_highest_liquidity =
+                ((lowest_liquidity as u128 * highest_price as u128) / lowest_price as u128) as u64;
+            msg!(
+                "Highest liquidity: {}, Lowest liquidity: {}, Remaining highest liquidity: {}",
+                highest_liquidity,
+                lowest_liquidity,
+                remaining_highest_liquidity
+            );
+            let user_belonging_lowest_outcome = highest_liquidity - remaining_highest_liquidity;
 
             // Now transfer from the liquidity pool to the user's account
             transfer_outcome(
@@ -279,9 +323,9 @@ pub mod solana_bet_placing_market {
 
             // We reduce the pools liquidity
             if ctx.accounts.pool.yes_liquidity < ctx.accounts.pool.no_liquidity {
-                ctx.accounts.pool.no_liquidity = remaining_lowest_outcome;
+                ctx.accounts.pool.no_liquidity = remaining_highest_liquidity;
             } else {
-                ctx.accounts.pool.yes_liquidity = remaining_lowest_outcome;
+                ctx.accounts.pool.yes_liquidity = remaining_highest_liquidity;
             }
 
             // And we also modify the new liquidity value to be the root value of the multiplication
@@ -290,7 +334,7 @@ pub mod solana_bet_placing_market {
             ctx.accounts.pool.liquidity_value = sqrt_u128(liquidity_value_squared) as u64;
 
             // Now we are emitting the event
-            emit!(LiquidityRemovedEvent{
+            emit!(LiquidityRemovedEvent {
                 market: ctx.accounts.market.key(),
                 user: ctx.accounts.user.key(),
                 burnt_lp_shares: shares,
@@ -300,6 +344,15 @@ pub mod solana_bet_placing_market {
                 remaining_yes_tokens: ctx.accounts.pool.yes_liquidity,
                 remaining_no_tokens: ctx.accounts.pool.no_liquidity,
             });
+            msg!(
+                "User removed liquidity, shares: {}, received: {} USD, remaining yes: {}, remaining no: {}, received lowest outcome: {}, received lowest outcome mint: {}",
+                shares,
+                liquidity_shares_value,
+                ctx.accounts.pool.yes_liquidity,
+                ctx.accounts.pool.no_liquidity,
+                user_belonging_lowest_outcome,
+                lowest_outcome_mint.key()
+            );
 
             Ok(())
         } else {
@@ -311,7 +364,8 @@ pub mod solana_bet_placing_market {
                 ctx.accounts.pool.yes_liquidity
             };
 
-            let liquidity_share_price = remaining_lowest_outcome / ctx.accounts.pool.liquidity_value;
+            let liquidity_share_price =
+                remaining_lowest_outcome / ctx.accounts.pool.liquidity_value;
             let user_belonging_money = shares * liquidity_share_price;
 
             // We are transferring now out from the vault the shares value
@@ -367,7 +421,7 @@ pub mod solana_bet_placing_market {
             ctx.accounts.pool.total_yes_mints -= user_belonging_money;
             ctx.accounts.pool.total_no_mints -= user_belonging_money;
 
-            emit!(LiquidityRemovedEvent{
+            emit!(LiquidityRemovedEvent {
                 market: ctx.accounts.market.key(),
                 user: ctx.accounts.user.key(),
                 burnt_lp_shares: shares,
@@ -389,7 +443,10 @@ pub mod solana_bet_placing_market {
     ) -> Result<()> {
         // First and foremost, we need the amount to be bigger than 0
         require!(usd_amount > 0, MarketError::Zero);
-        require!(ctx.accounts.market.resolved == false, MarketError::MarketResolved);
+        require!(
+            ctx.accounts.market.resolved == false,
+            MarketError::MarketResolved
+        );
 
         // Transfer the usd to the market vault
         {
@@ -679,7 +736,8 @@ fn add_unequal_outcomes_with_more_no(
 
     // Pool minted tokens
     let new_lp_no_minted_tokens = new_no_minted_tokens; // It is the same being the less probable chance
-    let new_lp_yes_minted_tokens = (no_token_price * new_no_minted_tokens) / yes_token_price;
+    let new_lp_yes_minted_tokens =
+        ((no_token_price as u128 * new_no_minted_tokens as u128) / yes_token_price as u128) as u64;
     let liquidity_squared = new_lp_no_minted_tokens as u128 * new_lp_yes_minted_tokens as u128;
     let new_liquidity_value = sqrt_u128(liquidity_squared) as u64;
 
@@ -795,8 +853,9 @@ fn add_unequal_outcomes_with_more_yes(
     // therefore, we are going to give back to the user the more probable outcome: NO
     // Pool minted tokens
     let new_lp_yes_minted_tokens = new_yes_minted_tokens; // It is the same being the less probable chance
-    let new_lp_no_minted_tokens = (yes_token_price * new_yes_minted_tokens) / no_token_price;
-    let liquidity_squared = (new_lp_no_minted_tokens * new_lp_yes_minted_tokens) as u128;
+    let new_lp_no_minted_tokens =
+        ((yes_token_price as u128 * new_yes_minted_tokens as u128) / no_token_price as u128) as u64;
+    let liquidity_squared = new_lp_no_minted_tokens as u128 * new_lp_yes_minted_tokens as u128;
     let new_liquidity_value = sqrt_u128(liquidity_squared) as u64;
 
     // Now, we calculate what we have to give to the user
@@ -923,7 +982,7 @@ pub struct Market {
     pub lp_share_mint: Pubkey, // lp mint that is used to represent total shares on a given pool
     pub vault: Pubkey,
     pub authority: Pubkey, // Who can create and do operations on the market
-    pub oracle: Pubkey,  // Who can resolve markets and set outcomes
+    pub oracle: Pubkey,    // Who can resolve markets and set outcomes
     pub market_number: u64,
     pub resolved: bool,
     pub outcome: Option<u8>, // 0 = No, 1 = Yes,
