@@ -196,7 +196,7 @@ export default function AddLiquidityForm({
     }, [amount, reloadMarket]);
 
     return (
-        <>
+        <div className="flex flex-col h-full">
             {/* Amount input & quick-selects */}
             <div className="text-sm text-slate-400 mb-1">USD Amount</div>
             <div className="flex items-center justify-between mb-8 w-full ">
@@ -235,7 +235,7 @@ export default function AddLiquidityForm({
             </div>
 
             {wallet?.publicKey ? (
-                <div className="mt-12">
+                <div className="mt-5">
                     {/* ── Chart & Shares Grid ── */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                         <div
@@ -398,10 +398,10 @@ export default function AddLiquidityForm({
                     </Button>
                 </div>
             ) : (
-                <div className="w-full flex justify-center">
+                <div className="w-full mt-auto mb-12 [&_*]:w-full [&_*]:justify-center">
                     <ConnectWalletButton/>
                 </div>
             )}
-        </>
+        </div>
     );
 }

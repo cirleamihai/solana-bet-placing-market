@@ -197,7 +197,7 @@ export default function RemoveLiquidityForm({
 
 
     return (
-        <>
+        <div className="flex flex-col h-full">
             {/* Shares input & quick-selects */}
             <div className="text-sm text-slate-400 mb-1">LP Shares</div>
             <div className="flex items-center justify-between mb-8 w-full">
@@ -248,40 +248,41 @@ export default function RemoveLiquidityForm({
                             </div>
                             {!maxAmountReached ?
                                 (<div className="md:col-span-2 flex items-center">
-                                <div className="w-35 h-28">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={chartData}
-                                                dataKey="value"
-                                                nameKey="name"
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius="50%"
-                                                outerRadius="80%"
-                                                stroke="none"
-                                            >
-                                                <Cell fill="#00ffa3"/>
-                                                <Cell fill="#693992"/>
-                                            </Pie>
-                                            <Tooltip formatter={(v: any) => `${v.toLocaleString()} shares`}/>
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                {/* Legend on the right */}
-                                <div className="ml-0 space-y-2">
-                                    {chartData.map((entry, idx) => (
-                                        <div key={entry.name} className="flex items-center text-slate-200">
+                                    <div className="w-35 h-28">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    data={chartData}
+                                                    dataKey="value"
+                                                    nameKey="name"
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius="50%"
+                                                    outerRadius="80%"
+                                                    stroke="none"
+                                                >
+                                                    <Cell fill="#00ffa3"/>
+                                                    <Cell fill="#693992"/>
+                                                </Pie>
+                                                <Tooltip formatter={(v: any) => `${v.toLocaleString()} shares`}/>
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    {/* Legend on the right */}
+                                    <div className="ml-0 space-y-2">
+                                        {chartData.map((entry, idx) => (
+                                            <div key={entry.name} className="flex items-center text-slate-200">
                                           <span
                                               className="w-3 h-3 rounded-full inline-block mr-2"
                                               style={{backgroundColor: idx === 0 ? "#00ffa3" : "#693992"}}
                                           />
-                                            <span className="text-sm">{entry.name}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>) : (
-                                    <div className="mt-4 text-sm font-semibold text-yellow-400 bg-yellow-900 bg-opacity-30 px-3 py-2 rounded-md shadow-inner">
+                                                <span className="text-sm">{entry.name}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>) : (
+                                    <div
+                                        className="mt-4 text-sm font-semibold text-yellow-400 bg-yellow-900 bg-opacity-30 px-3 py-2 rounded-md shadow-inner">
                                         ⚠️ Liquidity Pool will be empty and no more bets will take place!
                                     </div>
                                 )}
@@ -387,10 +388,10 @@ export default function RemoveLiquidityForm({
                     </Button>
                 </div>
             ) : (
-                <div className="w-full flex justify-center">
-                    <ConnectWalletButton/>
+                <div className="w-full mt-auto mb-12 [&_*]:w-full [&_*]:justify-center">
+                    <ConnectWalletButton />
                 </div>
             )}
-        </>
+        </div>
     );
 }
