@@ -12,10 +12,9 @@ import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
 import {toast} from "sonner";
 
 type Props = {
-    amount: number;
-    setAmount: Dispatch<SetStateAction<number>>;
     submitting: boolean;
     setSubmitting: Dispatch<SetStateAction<boolean>>;
+    reloadMarket: number;
     setReloadMarket: Dispatch<SetStateAction<number>>;
     setReloadLiquidityPool: Dispatch<SetStateAction<number>>;
     poolAccount: any,
@@ -28,8 +27,6 @@ type Props = {
 const MAX_AMOUNT = 100_000_000; // 100 million
 
 export default function AddLiquidityForm({
-                                             amount,
-                                             setAmount,
                                              submitting,
                                              poolAccount,
                                              userShares,
@@ -38,8 +35,10 @@ export default function AddLiquidityForm({
                                              setReloadMarket,
                                              setReloadLiquidityPool,
                                              market,
-                                             marketDataLoading
+                                             marketDataLoading,
+                                             reloadMarket,
                                          }: Props) {
+    const [amount, setAmount] = useState<number>(0);
     const [_maxAmountReached, setMaxAmountReached] = useState(false);
     const [liquidityShares, setLiquidityShares] = useState<number>(0);
     const [outcomeShares, setOutcomeShares] = useState<string>("0");
@@ -158,7 +157,7 @@ export default function AddLiquidityForm({
     }
 
     const chartData = useMemo(() => {
-        if (marketDataLoading || justPurchased.current) return chartDataRef.current;
+        if (justPurchased.current) return chartDataRef.current;
 
         let total = poolAccount?.liquidityShares ? poolAccount?.liquidityShares.toNumber() / 10 ** 9 : 0;
         total += liquidityShares; // Add the liquidity shares to the total
@@ -194,7 +193,7 @@ export default function AddLiquidityForm({
                     maximumFractionDigits: 2
                 }) + " NO" : "0.00";
         setOutcomeShares(outcomeShares)
-    }, [amount]);
+    }, [amount, reloadMarket]);
 
     return (
         <>

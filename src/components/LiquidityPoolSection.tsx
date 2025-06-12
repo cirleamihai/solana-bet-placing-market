@@ -1,9 +1,6 @@
 import {Dispatch, SetStateAction, useEffect, useMemo, useState} from "react";
 import {PublicKey} from "@solana/web3.js";
-import {useWallet} from "@solana/wallet-adapter-react";
 import {useAnchorProgram} from "@/lib/anchor";
-import {toast} from "sonner";
-import {Button} from "@/components/ui/button";
 import {
     PieChart,
     Pie,
@@ -12,12 +9,10 @@ import {
     Tooltip,
     Legend,
 } from "recharts";
-import BN from "bn.js";
 import AddLiquidityForm from "@/components/AddLiquidityForm";
 import RemoveLiquidityForm from "@/components/RemoveLiquidityForm";
 import {AnimatePresence, motion} from "framer-motion";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
-import {DUMMY_PUBKEY} from "@/lib/constants";
 
 type Props = {
     market: any;
@@ -44,11 +39,10 @@ export default function LiquidityPoolSection({
 
     const [action, setAction] = useState<"add" | "remove">("add");
     const [prevAction, setPrevAction] = useState<"add" | "remove">("add");
-    const [amount, setAmount] = useState<number>(0);
     const [submitting, setSubmitting] = useState(false);
     const [userShares, setUserShares] = useState<number>(0);
     const [shares, setShares] = useState<number>(0);
-    const [liquidityRemoved, setLiquidityRemoved] = useState(false);
+    const [liquidityRemoved, _setLiquidityRemoved] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -163,14 +157,13 @@ export default function LiquidityPoolSection({
                                 className="absolute inset-0"
                             >
                                 <AddLiquidityForm
-                                    amount={amount}
-                                    setAmount={setAmount}
                                     submitting={submitting}
                                     poolAccount={poolAccount}
                                     userShares={userShares}
                                     marketKey={marketPubkey}
                                     setSubmitting={setSubmitting}
                                     setReloadLiquidityPool={setReloadLiquidityPool}
+                                    reloadMarket={reloadMarket}
                                     setReloadMarket={setReloadMarket}
                                     market={market}
                                     marketDataLoading={marketDataLoading}

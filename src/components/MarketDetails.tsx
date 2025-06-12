@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router-dom";
 import {useAnchorProgram} from "@/lib/anchor";
 import {supabase} from "@/lib/supabase";
@@ -32,14 +32,29 @@ export default function MarketDetails() {
     const [noPrice, setNoPrice] = useState<number>(-1);
     const [transactionDetails, setTransactionDetails] = useState<TransactionDetails[]>([]);
     const [reloadLiquidityPool, setReloadLiquidityPool] = useState(0);
+    const dataExists = useRef(false);
+
+    // Loading market question from db
+    useEffect(() => {
+        if (!marketPubkey) return;
+        /** ----------- metadata --------------- **/
+        (async () => {
+            const {data} = await supabase
+                .from("market_metadata")
+                .select("market_name, created_at")
+                .eq("market_pubkey", marketPubkey)
+                .single();
+
+            setQuestion(data?.market_name ?? `Market ${marketPubkey.slice(0, 4)}…`);
+            setCreatedAt(data?.created_at);
+        })();
+    }, []);
 
     useEffect(() => {
         if (!marketPubkey) return;
         (async () => {
             setmarketDataLoading(true);
-            console.log("marketDataLoading", marketDataLoading);
             try {
-                /** ---------- on-chain fetch ---------- **/
                 const pubkey = new PublicKey(marketPubkey);
                 // @ts-ignore
                 const marketAcct = await program.account.market.fetch(pubkey);
@@ -74,23 +89,14 @@ export default function MarketDetails() {
 
                 setYesProb(prob);
                 setVolume(totalVol);
-
-                /** ----------- metadata --------------- **/
-                const {data} = await supabase
-                    .from("market_metadata")
-                    .select("market_name, created_at")
-                    .eq("market_pubkey", marketPubkey)
-                    .single();
-
-                setQuestion(data?.market_name ?? `Market ${marketPubkey.slice(0, 4)}…`);
-                setCreatedAt(data?.created_at);
+                dataExists.current = true;
             } catch (err) {
                 console.error("Failed to load market page:", err);
             } finally {
                 setmarketDataLoading(false);
             }
         })();
-    }, [marketPubkey, program, reloadLiquidityPool]);
+    }, [marketPubkey, program, reloadLiquidityPool, reloadMarket]);
 
     useEffect(() => {
         const fetchDbMarketData = async () => {
@@ -133,7 +139,7 @@ export default function MarketDetails() {
         computeChartData();
     }, [reloadMarket, transactionDetails, yesPrice, noPrice]);
 
-    if (marketDataLoading && reloadLiquidityPool === 0) {
+    if (marketDataLoading && !dataExists.current) {
         return (
             <div className="flex justify-center items-center h-80">
                 <GridLoader color="#a6d1e6"/>
