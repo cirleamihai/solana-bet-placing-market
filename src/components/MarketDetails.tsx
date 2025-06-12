@@ -14,7 +14,7 @@ import {DUMMY_PUBKEY} from "@/lib/constants";
 export default function MarketDetails() {
     const {marketPubkey} = useParams();          // ← from route
 
-    const {program} = useAnchorProgram();
+    const {program, wallet} = useAnchorProgram();
     const [market, setMarket] = useState<any>(null);
     const [marketDataLoading, setmarketDataLoading] = useState(true);
     const [question, setQuestion] = useState<string>("");
@@ -97,6 +97,11 @@ export default function MarketDetails() {
             }
         })();
     }, [marketPubkey, program, reloadLiquidityPool, reloadMarket]);
+
+    useEffect(() => {
+        setReloadLiquidityPool((prev) => prev + 1);
+        setReloadMarket((prev) => prev + 1);
+    }, [wallet?.publicKey]);
 
     useEffect(() => {
         const fetchDbMarketData = async () => {

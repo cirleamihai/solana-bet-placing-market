@@ -54,7 +54,10 @@ export default function LiquidityPoolSection({
 
     useEffect(() => {
         (async () => {
-            if (!market || !wallet || !(wallet?.publicKey)) return;
+            if (!market || !wallet || !(wallet?.publicKey)) {
+                setUserShares(0);
+                return;
+            }
 
             const lpShareMint = market.lpShareMint;
             const liquiditySharesAccount = (await createAssociatedTokenAccounts(

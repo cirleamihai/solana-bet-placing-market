@@ -11,6 +11,7 @@ import {AnchorProvider, BN} from "@coral-xyz/anchor";
 import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
 import {toast} from "sonner";
 import {useAnchorProgram} from "@/lib/anchor";
+import {Frown} from "lucide-react";
 
 type Props = {
     submitting: boolean;
@@ -388,8 +389,17 @@ export default function RemoveLiquidityForm({
                     </Button>
                 </div>
             ) : (
-                <div className="w-full mt-auto mb-12 [&_*]:w-full [&_*]:justify-center">
-                    <ConnectWalletButton />
+                <div className="flex flex-col h-full">
+
+                    <div className="h-[160px] flex flex-col items-center justify-center text-slate-400">
+                        <Frown className="w-20 h-20 mb-4"/>
+                        <h2 className="text-xl font-semibold">You need to be signed in!</h2>
+                        <p className="text-sm">Afterwards, you will be able to trade.</p>
+                    </div>
+
+                    <div className="w-full mt-auto mb-12 [&_*]:w-full [&_*]:justify-center">
+                        <ConnectWalletButton/>
+                    </div>
                 </div>
             )}
         </div>
