@@ -41,7 +41,6 @@ export default function LiquidityPoolSection({
     const [prevAction, setPrevAction] = useState<"add" | "remove">("add");
     const [submitting, setSubmitting] = useState(false);
     const [userShares, setUserShares] = useState<number>(0);
-    const [shares, setShares] = useState<number>(0);
     const [liquidityRemoved, _setLiquidityRemoved] = useState(false);
 
     useEffect(() => {
@@ -166,7 +165,6 @@ export default function LiquidityPoolSection({
                                     reloadMarket={reloadMarket}
                                     setReloadMarket={setReloadMarket}
                                     market={market}
-                                    marketDataLoading={marketDataLoading}
                                 />
                             </motion.div>
                         ) : (
@@ -179,14 +177,15 @@ export default function LiquidityPoolSection({
                                 className="absolute inset-0"
                             >
                                 <RemoveLiquidityForm
-                                    shares={shares}
-                                    setShares={setShares}
                                     submitting={submitting}
-                                    maxShares={userShares}
-                                    onSubmit={() => {
-                                    }}
-                                    liquidityRemoved={liquidityRemoved}
                                     poolAccount={poolAccount}
+                                    userShares={userShares}
+                                    marketKey={marketPubkey}
+                                    setSubmitting={setSubmitting}
+                                    setReloadLiquidityPool={setReloadLiquidityPool}
+                                    reloadMarket={reloadMarket}
+                                    setReloadMarket={setReloadMarket}
+                                    market={market}
                                 />
                             </motion.div>
                         )}

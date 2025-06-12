@@ -21,7 +21,6 @@ type Props = {
     userShares: number,
     marketKey: PublicKey,
     market: any,
-    marketDataLoading: boolean
 };
 
 const MAX_AMOUNT = 100_000_000; // 100 million
@@ -35,7 +34,6 @@ export default function AddLiquidityForm({
                                              setReloadMarket,
                                              setReloadLiquidityPool,
                                              market,
-                                             marketDataLoading,
                                              reloadMarket,
                                          }: Props) {
     const [amount, setAmount] = useState<number>(0);
@@ -172,7 +170,7 @@ export default function AddLiquidityForm({
         // @ts-ignore
         chartDataRef.current = newChartData;
         return newChartData;
-    }, [amount, poolAccount?.liquidityShares, userShares, liquidityShares, marketDataLoading]);
+    }, [amount, poolAccount?.liquidityShares, userShares, liquidityShares]);
 
     useEffect(() => {
         const liquidityBenefits = getAddLiquidityPotentialBenefits(
