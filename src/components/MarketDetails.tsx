@@ -7,7 +7,7 @@ import {GridLoader} from "react-spinners";
 import MarketPriceChart, {ChartPoint} from "@/components/MarketPriceChart";
 import MarketTradeSection, {TransactionDetails} from "@/components/MarketTradeSection";
 import {toast} from "sonner";
-import {Button} from "@/components/ui/button";
+import LiquidityPoolSection from "@/components/LiquidityPool";
 import AddInitialLiquidityModal from "@/components/AddInitialLiquidityModal";
 
 export default function MarketDetails() {
@@ -157,17 +157,6 @@ export default function MarketDetails() {
                 </h1>
 
                 <div className="flex items-center gap-8 mr-2">
-                    <Button
-                        className="bg-purple-700 hover:bg-purple-950 cursor-pointer text-slate-100 font-semibold px-6 py-2 h-10.5 rounded text-lg flex items-center justify-center"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            setWantsToAddLiquidity(true);
-                        }}
-                    >
-                        <div>
-                            + Add Liquidity
-                        </div>
-                    </Button>
                     {createdAt &&
                         <span className="text-md text-slate-300">
                         Created at &nbsp; <span
@@ -226,7 +215,7 @@ export default function MarketDetails() {
 
                 <MarketPriceChart points={chartData}/>
             </div>
-            <div className="flex flex-col justify-between mt-10">
+            <div className="flex flex-col justify-between mt-10 mb-10">
                 <div className="text-4xl font-bold text-slate-200 tracking-tight mb-5 flex items-center gap-3">
                     <div className="flex items-center gap-2">
                         {/* Solana Coin Icon */}
@@ -280,6 +269,16 @@ export default function MarketDetails() {
                     Liquidity Pool
                 </div>
 
+                {poolAccount ? (
+                    <LiquidityPoolSection
+                        marketKey={marketPubkey ? new PublicKey(marketPubkey) : null}
+                        poolAccount={poolAccount}
+                        reloadMarket={reloadMarket}
+                        setReloadMarket={setReloadMarket}
+                    />
+                ) : (
+                    <p className="text-slate-400">Loading pool …</p>
+                )}
 
             </div>
             {(liquidityEmptyModal || wantsToAddLiquidity) && (
