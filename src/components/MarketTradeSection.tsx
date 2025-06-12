@@ -342,7 +342,7 @@ export default function MarketTradeSection({
                             </button>
                         ))}
                         <button
-                            onClick={() => setAmount(MAX_AMOUNT - 1)}
+                            onClick={() => setAmount(MAX_AMOUNT)}
                             className="bg-slate-800 border border-gray-700 px-3 py-1 rounded-md cursor-pointer text-white text-sm hover:bg-slate-700"
                         >
                             Max

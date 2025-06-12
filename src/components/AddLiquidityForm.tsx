@@ -1,11 +1,12 @@
 import {Dispatch, SetStateAction, useState} from "react";
-import { Button } from "@/components/ui/button";
+import {Button} from "@/components/ui/button";
 
 type Props = {
     amount: number;
     setAmount: Dispatch<SetStateAction<number>>;
     submitting: boolean;
     onSubmit: () => void;
+    liquidityAdded: boolean;
 };
 
 const MAX_AMOUNT = 100_000_000; // 100 million
@@ -15,6 +16,7 @@ export default function AddLiquidityForm({
                                              setAmount,
                                              submitting,
                                              onSubmit,
+                                             liquidityAdded
                                          }: Props) {
 
     const [_maxAmountReached, setMaxAmountReached] = useState(false);
@@ -61,7 +63,7 @@ export default function AddLiquidityForm({
                         </button>
                     ))}
                     <button
-                        onClick={() => setAmount(MAX_AMOUNT - 1)}
+                        onClick={() => setAmount(MAX_AMOUNT)}
                         className="bg-slate-800 border border-gray-700 px-3 py-1 rounded-md cursor-pointer text-white text-sm hover:bg-slate-700"
                     >
                         Max
@@ -79,7 +81,7 @@ export default function AddLiquidityForm({
             </div>
 
             <Button
-                className="w-full h-12 text-xl font-semibold"
+                className={`w-full h-12 text-xl cursor-pointer font-semibold ${liquidityAdded ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-800"}`}
                 disabled={submitting || amount <= 0}
                 onClick={onSubmit}
             >
