@@ -116,7 +116,7 @@ export default function LiquidityPoolSection({
     };
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
             {/* ——— Pie Chart ——— */}
             <div className="h-72 w-full">
                 <ResponsiveContainer>
@@ -145,9 +145,9 @@ export default function LiquidityPoolSection({
                 animate={action}
                 initial={false}
                 transition={{ duration: 0.35 }}
-                className="rounded-xl text-white p-6 shadow-md overflow-hidden"
+                className="rounded-xl text-white p-6 shadow-md relative min-h-[420px]"
             >
-                {/* ─ Tabs ─ */}
+                {/* Tabs */}
                 <div className="flex gap-4 mb-4 border-b border-gray-700 pb-2">
                     <button
                         className={`flex-1 text-center font-semibold text-lg px-3 border-b-2 cursor-pointer transition-colors ${
@@ -167,8 +167,7 @@ export default function LiquidityPoolSection({
                     </button>
                 </div>
 
-                {/* ─ Slide-animated form switching ─ */}
-                <div className="relative items-stretch">
+                <div className="relative w-full h-full">
                     <AnimatePresence mode="sync" initial={false}>
                         {isAdd ? (
                             <motion.div
