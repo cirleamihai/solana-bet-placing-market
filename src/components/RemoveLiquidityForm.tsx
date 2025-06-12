@@ -38,7 +38,7 @@ export default function RemoveLiquidityForm({
     const [sharesToRemove, setSharesToRemove] = useState<number>(0);
     const [usdToReceiveForLPShares, setUsdToReceiveForLPShares] = useState<number>(0);
     const [outcomeShares, setOutcomeShares] = useState<string>("0.00");
-    const [_maxAmountReached, setMaxAmountReached] = useState(false);
+    const [maxAmountReached, setMaxAmountReached] = useState(false);
     const [liquidityRemoved, setLiquidityRemoved] = useState(false);
     const {wallet, connection, program} = useAnchorProgram();
     const chartDataRef = useRef([]);
@@ -139,6 +139,7 @@ export default function RemoveLiquidityForm({
             setSharesToRemove((prev) => prev + value);
             setMaxAmountReached(false);
         } else {
+            setSharesToRemove(MAX_AMOUNT)
             setMaxAmountReached(true); // Set flag if adding this value exceeds max
         }
     };
@@ -158,7 +159,7 @@ export default function RemoveLiquidityForm({
         if (justPurchased.current) return chartDataRef.current;
 
         let total = poolAccount?.liquidityShares ? poolAccount.liquidityShares.toNumber() / 10 ** 9 : 0;
-        total -= usdToReceiveForLPShares; // Adjust total by shares to remove
+        total -= sharesToRemove; // Adjust total by shares to remove
         const mine = userShares - sharesToRemove;
         const userSharePercentage = total > 0 ? (mine / total) * 100 : 0;
         const othersSharePercentage = 100 - userSharePercentage;
@@ -217,7 +218,7 @@ export default function RemoveLiquidityForm({
                         </button>
                     ))}
                     <button
-                        onClick={() => setSharesToRemove(MAX_AMOUNT)}
+                        onClick={() => handleAddAmount(MAX_AMOUNT)}
                         className="bg-slate-800 border border-gray-700 px-3 py-1 rounded-md cursor-pointer text-white text-sm hover:bg-slate-700"
                     >
                         Max
@@ -242,11 +243,11 @@ export default function RemoveLiquidityForm({
                         <div
                             className=" md:col-span-1 md:col-start-1 flex flex-col justify-center items-center bg-[#270740] p-5 rounded-xl shadow-inner border border-[#5c2c78]
 ">
-
                             <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
                                 Potential Pool Share
                             </div>
-                            <div className="md:col-span-2 flex items-center">
+                            {!maxAmountReached ?
+                                (<div className="md:col-span-2 flex items-center">
                                 <div className="w-35 h-28">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart>
@@ -279,7 +280,11 @@ export default function RemoveLiquidityForm({
                                         </div>
                                     ))}
                                 </div>
-                            </div>
+                            </div>) : (
+                                    <div className="mt-4 text-sm font-semibold text-yellow-400 bg-yellow-900 bg-opacity-30 px-3 py-2 rounded-md shadow-inner">
+                                        ⚠️ Liquidity Pool will be empty and no more bets will take place!
+                                    </div>
+                                )}
                         </div>
 
                         {/* Shares to Purchase occupies 1/3 of the width */}
