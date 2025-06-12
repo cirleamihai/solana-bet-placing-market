@@ -42,3 +42,41 @@ export const getAddLiquidityPotentialBenefits = (
         }
     }
 }
+
+export const getRemoveLiquidityPotentialBenefits = (
+    liquidityValue: number,
+    yesLiquidity: number,
+    noLiquidity: number,
+    sharesToRemove: number,
+) => {
+    if (yesLiquidity === noLiquidity || sharesToRemove == 0) {
+        return {
+            moneyToReceive: sharesToRemove,
+            yesShares: 0,
+            noShares: 0
+        }
+    }
+
+    const lowestOutcomeShares = Math.max(yesLiquidity, noLiquidity);
+    const yesPrice = noLiquidity / (yesLiquidity + noLiquidity);
+    const noPrice = yesLiquidity / (yesLiquidity + noLiquidity);
+    const liquiditySharesUSDValue = liquidityValue / lowestOutcomeShares * sharesToRemove;
+
+    yesLiquidity -= liquiditySharesUSDValue;
+    noLiquidity -= liquiditySharesUSDValue;
+
+    let remainingYesShares, remainingNoShares;
+    if (noLiquidity > yesLiquidity) { // we are going to give YES shares aswell to balance the pool
+        remainingNoShares = yesLiquidity * yesPrice / noPrice;
+        remainingYesShares = yesLiquidity;
+    } else {
+        remainingYesShares = noLiquidity * noPrice / yesPrice;
+        remainingNoShares = noLiquidity;
+    }
+    return {
+        moneyToReceive: liquiditySharesUSDValue,
+        yesShares: yesLiquidity - remainingYesShares,
+        noShares: noLiquidity - remainingNoShares,
+    }
+
+}
