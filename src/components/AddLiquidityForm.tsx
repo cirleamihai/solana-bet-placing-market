@@ -1,18 +1,28 @@
-import {Dispatch, SetStateAction, useEffect, useMemo, useState} from "react";
+import {Dispatch, SetStateAction, useEffect, useMemo, useRef, useState} from "react";
 import {Button} from "@/components/ui/button";
-import {useWallet} from "@solana/wallet-adapter-react";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
-import {Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip} from "recharts";
+import {Cell, Pie, PieChart, ResponsiveContainer, Tooltip} from "recharts";
 import {getAddLiquidityPotentialBenefits} from "@/blockchain/computeLiquidityBenefits";
+import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
+import {USD_MINT} from "@/lib/constants";
+import {useAnchorProgram} from "@/lib/anchor";
+import {PublicKey, Transaction} from "@solana/web3.js";
+import {AnchorProvider, BN} from "@coral-xyz/anchor";
+import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
+import {toast} from "sonner";
 
 type Props = {
     amount: number;
     setAmount: Dispatch<SetStateAction<number>>;
     submitting: boolean;
-    onSubmit: () => void;
-    liquidityAdded: boolean;
+    setSubmitting: Dispatch<SetStateAction<boolean>>;
+    setReloadMarket: Dispatch<SetStateAction<number>>;
+    setReloadLiquidityPool: Dispatch<SetStateAction<number>>;
     poolAccount: any,
     userShares: number,
+    marketKey: PublicKey,
+    market: any,
+    marketDataLoading: boolean
 };
 
 const MAX_AMOUNT = 100_000_000; // 100 million
@@ -21,15 +31,22 @@ export default function AddLiquidityForm({
                                              amount,
                                              setAmount,
                                              submitting,
-                                             onSubmit,
-                                             liquidityAdded,
                                              poolAccount,
                                              userShares,
+                                             marketKey,
+                                             setSubmitting,
+                                             setReloadMarket,
+                                             setReloadLiquidityPool,
+                                             market,
+                                             marketDataLoading
                                          }: Props) {
     const [_maxAmountReached, setMaxAmountReached] = useState(false);
     const [liquidityShares, setLiquidityShares] = useState<number>(0);
     const [outcomeShares, setOutcomeShares] = useState<string>("0");
-    const wallet = useWallet();
+    const {wallet, connection, program} = useAnchorProgram();
+    const [liquidityAdded, setLiquidityAdded] = useState(false);
+    const chartDataRef = useRef([]);
+    const justPurchased = useRef(false);
 
     const handleAddAmount = (value: number) => {
         if (amount + value < MAX_AMOUNT) {
@@ -51,17 +68,112 @@ export default function AddLiquidityForm({
         }
     }
 
+    const addLiquidityBlockchain = async () => {
+        if (!wallet || !wallet.publicKey || !poolAccount || !market) return;
+        setSubmitting(true);
+        const ataInstructions: any[] = []; // Instructions for creating associated token accounts
+
+        const userUsd = (await createAssociatedTokenAccounts(USD_MINT, wallet.publicKey, wallet, connection, ataInstructions)).ata;
+        // @ts-ignore
+        const userYes = (await createAssociatedTokenAccounts(market.yesMint, wallet.publicKey, wallet, connection, ataInstructions)).ata;
+        // @ts-ignore
+        const userNo = (await createAssociatedTokenAccounts(market.noMint, wallet.publicKey, wallet, connection, ataInstructions)).ata;
+        // @ts-ignore
+        const userLp = (await createAssociatedTokenAccounts(market.lpShareMint, wallet.publicKey, wallet, connection, ataInstructions)).ata;
+
+        const [poolPda] = PublicKey.findProgramAddressSync(
+            [Buffer.from("pool"), marketKey.toBuffer()],
+            program.programId
+        );
+
+        const [vaultPda] = PublicKey.findProgramAddressSync(
+            [Buffer.from("vault"), marketKey.toBuffer()],
+            program.programId
+        );
+
+        const [yesLiquidityPda] = PublicKey.findProgramAddressSync(
+            [Buffer.from("yes_liquidity_pool"), marketKey.toBuffer()],
+            program.programId
+        );
+
+        const [noLiquidityPda] = PublicKey.findProgramAddressSync(
+            [Buffer.from("no_liquidity_pool"), marketKey.toBuffer()],
+            program.programId
+        );
+        console.log("Got here.")
+
+        try {
+            const tx = new Transaction();
+            ataInstructions.length > 0 && tx.add(...ataInstructions);
+
+            const ix = await program.methods
+                .addLiquidity(new BN(Number(amount) * 10 ** 9))
+                .accounts({
+                    pool: poolPda,
+                    market: marketKey,
+                    vault: vaultPda,
+                    // @ts-ignore
+                    yesMint: market.yesMint,
+                    // @ts-ignore
+                    noMint: market.noMint,
+                    // @ts-ignore
+                    lpShareMint: market.lpShareMint,
+                    userUsdAccount: userUsd,
+                    userYesAccount: userYes,
+                    userNoAccount: userNo,
+                    userLpShareAccount: userLp,
+                    liquidityYesTokensAccount: yesLiquidityPda,
+                    liquidityNoTokensAccount: noLiquidityPda,
+                    user: wallet.publicKey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            tx.add(ix);
+
+            // @ts-ignore
+            const provider = program.provider as AnchorProvider;
+            const _sig = await provider.sendAndConfirm(tx);
+
+            toast.success("Liquidity added successfully!")
+
+            justPurchased.current = true;
+            setReloadMarket((prev) => prev + 1);
+            setReloadLiquidityPool((prev) => prev + 1);
+            setLiquidityAdded(true);
+            setTimeout(() => {
+                setLiquidityAdded(false);
+                justPurchased.current = false;
+            }, 2500);
+
+        } catch (error) {
+            // @ts-ignore
+            console.log(error.getLogs());
+            toast.error("Failed to add liquidity. Please try again.")
+        } finally {
+            setSubmitting(false);
+            setAmount(0);
+            setLiquidityShares(0);
+        }
+    }
+
     const chartData = useMemo(() => {
+        if (marketDataLoading || justPurchased.current) return chartDataRef.current;
+
         let total = poolAccount?.liquidityShares ? poolAccount?.liquidityShares.toNumber() / 10 ** 9 : 0;
         total += liquidityShares; // Add the liquidity shares to the total
         const mine = userShares + liquidityShares;
         const userSharePercentage = total > 0 ? (mine / total) * 100 : 0;
         const othersSharePercentage = 100 - userSharePercentage;
-        return [
-            {name: `You ${userSharePercentage}%`, value: mine},
-            {name: `Others ${othersSharePercentage}%`, value: total - mine},
+        const newChartData = [
+            {name: `You ${userSharePercentage.toFixed(2)}%`, value: mine},
+            {name: `Others ${othersSharePercentage.toFixed(2)}%`, value: total - mine},
         ];
-    }, [amount, poolAccount?.liquidityShares, userShares, liquidityShares]);
+
+        // @ts-ignore
+        chartDataRef.current = newChartData;
+        return newChartData;
+    }, [amount, poolAccount?.liquidityShares, userShares, liquidityShares, marketDataLoading]);
 
     useEffect(() => {
         const liquidityBenefits = getAddLiquidityPotentialBenefits(
@@ -73,8 +185,14 @@ export default function AddLiquidityForm({
         setLiquidityShares(liquidityBenefits.lpShares)
 
         const outcomeShares = liquidityBenefits.yesShares ?
-            liquidityBenefits.yesShares.toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " YES":
-            liquidityBenefits.noShares.toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " NO";
+            liquidityBenefits.yesShares.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }) + " YES" : liquidityBenefits.noShares ?
+                liquidityBenefits.noShares.toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }) + " NO" : "0.00";
         setOutcomeShares(outcomeShares)
     }, [amount]);
 
@@ -117,7 +235,7 @@ export default function AddLiquidityForm({
                 </div>
             </div>
 
-            {wallet.connected ? (
+            {wallet?.publicKey ? (
                 <div className="mt-12">
                     {/* ── Chart & Shares Grid ── */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -127,54 +245,59 @@ export default function AddLiquidityForm({
                             <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
                                 Potential Pool Share
                             </div>
-                            <div className="md:col-span-2 flex items-center">
-                                <div className="w-35 h-28">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={chartData}
-                                                dataKey="value"
-                                                nameKey="name"
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius="50%"
-                                                outerRadius="80%"
-                                                stroke="none"
-                                            >
-                                                <Cell fill="#00ffa3"/>
-                                                <Cell fill="#083fa0"/>
+                            {chartData && chartData.length > 0 && (
+                                <div className="md:col-span-2 flex items-center">
+                                    <div className="w-35 h-28">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    data={chartData}
+                                                    dataKey="value"
+                                                    nameKey="name"
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius="50%"
+                                                    outerRadius="80%"
+                                                    stroke="none"
+                                                >
+                                                    <Cell fill="#00ffa3"/>
+                                                    <Cell fill="#083fa0"/>
 
-                                            </Pie>
-                                            <Tooltip
-                                                formatter={(v: number) => `${v.toLocaleString("en-US", {maximumFractionDigits: 2, minimumFractionDigits: 2})} shares`}
-                                                contentStyle={{
-                                                    backgroundColor: "#1f2937",
-                                                    border: "1px solid #4b5563",
-                                                    borderRadius: "8px",
-                                                    padding: "8px",
-                                                    color: "#e5e7eb"
-                                                }}
-                                                itemStyle={{
-                                                    color: "#e5e7eb",
-                                                    fontSize: "0.875rem"
-                                                }}
-                                            />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                {/* Legend on the right */}
-                                <div className="ml-1 space-y-2">
-                                    {chartData.map((entry, idx) => (
-                                        <div key={entry.name} className="flex items-center text-slate-200">
+                                                </Pie>
+                                                <Tooltip
+                                                    formatter={(v: number) => `${v.toLocaleString("en-US", {
+                                                        maximumFractionDigits: 2,
+                                                        minimumFractionDigits: 2
+                                                    })} shares`}
+                                                    contentStyle={{
+                                                        backgroundColor: "#1f2937",
+                                                        border: "1px solid #4b5563",
+                                                        borderRadius: "8px",
+                                                        padding: "8px",
+                                                        color: "#e5e7eb"
+                                                    }}
+                                                    itemStyle={{
+                                                        color: "#e5e7eb",
+                                                        fontSize: "0.875rem"
+                                                    }}
+                                                />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    {/* Legend on the right */}
+                                    <div className="ml-1 space-y-2">
+                                        {chartData.map((entry, idx) => (
+                                            <div key={entry.name} className="flex items-center text-slate-200">
                                           <span
                                               className="w-3 h-3 rounded-full inline-block mr-2"
                                               style={{backgroundColor: idx === 0 ? "#00ffa3" : "#083fa0"}}
                                           />
-                                            <span className="text-sm">{entry.name}</span>
-                                        </div>
-                                    ))}
+                                                <span className="text-sm">{entry.name}</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
 
                         {/* Shares to Purchase occupies 1/3 of the width */}
@@ -183,7 +306,9 @@ export default function AddLiquidityForm({
                             <div className="text-sm uppercase text-slate-400 tracking-widest mb-1 ">
                                 LIQUIDITY SHARES TO RECEIVE
                             </div>
-                            <div className="text-xl font-bold text-sky-400">{liquidityShares.toLocaleString("en-US", {maximumFractionDigits: 2})} SHARES</div>
+                            <div
+                                className="text-xl font-bold text-sky-400">{liquidityShares.toLocaleString("en-US", {maximumFractionDigits: 2})} SHARES
+                            </div>
 
                             <div className="w-full border-b-2 mt-3 border-slate-600"></div>
                             <div className="text-sm uppercase text-slate-400 tracking-widest mb-1 mt-3 relative">
@@ -215,19 +340,62 @@ export default function AddLiquidityForm({
                                     </div>
                                 </div>
                             </div>
-                            <div className={`text-xl font-bold ${outcomeShares.toLowerCase().includes("no") ? 
-                            "text-red-400" : "text-green-400"}`}>{outcomeShares} SHARES</div>
+                            <div className={`text-xl font-bold ${outcomeShares.toLowerCase().includes("no") ?
+                                "text-red-400" : outcomeShares.toLowerCase().includes("yes")
+                                    ? "text-green-400" : "text-sky-400"}`}>{outcomeShares} SHARES
+                            </div>
                         </div>
                     </div>
 
                     <Button
-                        className={`w-full h-12 text-xl font-semibold ${
-                            liquidityAdded ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-800"
+                        className={`w-full h-12 text-xl font-semibold cursor-pointer ${
+                            liquidityAdded
+                                ? "bg-green-600 hover:bg-green-700"
+                                : "bg-blue-600 hover:bg-blue-800"
                         }`}
                         disabled={submitting || amount <= 0}
-                        onClick={onSubmit}
+                        onClick={addLiquidityBlockchain}
                     >
-                        {submitting ? "Submitting…" : "Add Liquidity"}
+                        {liquidityAdded ? (
+                            <div className="flex items-center justify-center gap-2">
+                                <svg
+                                    className="h-5 w-5 text-white"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={3}
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                Liquidity Added!
+                            </div>
+                        ) : submitting ? (
+                            <div className="flex items-center justify-center gap-2">
+                                <svg
+                                    className="animate-spin h-5 w-5 text-white"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                    ></circle>
+                                    <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"
+                                    ></path>
+                                </svg>
+                                Adding liquidity…
+                            </div>
+                        ) : (
+                            "Add Liquidity"
+                        )}
                     </Button>
                 </div>
             ) : (

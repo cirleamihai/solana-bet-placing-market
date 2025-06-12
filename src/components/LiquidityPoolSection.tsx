@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from "react";
+import {Dispatch, SetStateAction, useEffect, useMemo, useState} from "react";
 import {PublicKey} from "@solana/web3.js";
 import {useWallet} from "@solana/wallet-adapter-react";
 import {useAnchorProgram} from "@/lib/anchor";
@@ -21,16 +21,24 @@ import {DUMMY_PUBKEY} from "@/lib/constants";
 
 type Props = {
     market: any;
+    marketPubkey: PublicKey; // public key of the market
     poolAccount: any;            // on-chain pool PDA
     reloadMarket: number;
-    setReloadMarket: (n: number) => void;
+    setReloadMarket: Dispatch<SetStateAction<number>>;
+    reloadLiquidityPool: number;
+    setReloadLiquidityPool: Dispatch<SetStateAction<number>>;
+    marketDataLoading: boolean
 };
 
 export default function LiquidityPoolSection({
                                                  market,
+                                                 marketPubkey,
                                                  poolAccount,
                                                  reloadMarket,
                                                  setReloadMarket,
+                                                 reloadLiquidityPool,
+                                                 setReloadLiquidityPool,
+    marketDataLoading,
                                              }: Props) {
     const {connection, wallet} = useAnchorProgram();
 
@@ -40,9 +48,7 @@ export default function LiquidityPoolSection({
     const [submitting, setSubmitting] = useState(false);
     const [userShares, setUserShares] = useState<number>(0);
     const [shares, setShares] = useState<number>(0);
-    const [liquidityAdded, setLiquidityAdded] = useState(false);
     const [liquidityRemoved, setLiquidityRemoved] = useState(false);
-    const [reloadLiquidityPool, setReloadLiquidityPool] = useState(0);
 
     useEffect(() => {
         (async () => {
@@ -91,31 +97,6 @@ export default function LiquidityPoolSection({
         add: {backgroundColor: "#1f2937"},   // tailwind slate-800
         remove: {backgroundColor: "#2e1065"},   // deep midnight-purple
     };
-
-    /* submit wrappers just dispatch the right RPC */
-    const handleAdd = async () => {
-        setSubmitting(true);
-        try {
-            /* …call addLiquidity() here… */
-            setAmount(0);
-            toast.success("Added liquidity");
-            setReloadMarket(reloadMarket + 1);
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const handleRemove = async () => {
-        setSubmitting(true);
-        try {
-            setUserShares(0);
-            toast.success("Removed liquidity");
-            setReloadMarket(reloadMarket + 1);
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
             {/* ——— Pie Chart ——— */}
@@ -155,6 +136,7 @@ export default function LiquidityPoolSection({
                             isAdd ? "text-blue-400 border-blue-400" : "text-gray-400 border-transparent"
                         }`}
                         onClick={() => handleTabSwitch("add")}
+                        disabled={submitting}
                     >
                         Add Liquidity
                     </button>
@@ -163,6 +145,7 @@ export default function LiquidityPoolSection({
                             !isAdd ? "text-purple-400 border-purple-400" : "text-gray-400 border-transparent"
                         }`}
                         onClick={() => handleTabSwitch("remove")}
+                        disabled={submitting}
                     >
                         Remove Liquidity
                     </button>
@@ -183,10 +166,14 @@ export default function LiquidityPoolSection({
                                     amount={amount}
                                     setAmount={setAmount}
                                     submitting={submitting}
-                                    onSubmit={handleAdd}
-                                    liquidityAdded={liquidityAdded}
                                     poolAccount={poolAccount}
                                     userShares={userShares}
+                                    marketKey={marketPubkey}
+                                    setSubmitting={setSubmitting}
+                                    setReloadLiquidityPool={setReloadLiquidityPool}
+                                    setReloadMarket={setReloadMarket}
+                                    market={market}
+                                    marketDataLoading={marketDataLoading}
                                 />
                             </motion.div>
                         ) : (
@@ -203,7 +190,8 @@ export default function LiquidityPoolSection({
                                     setShares={setShares}
                                     submitting={submitting}
                                     maxShares={userShares}
-                                    onSubmit={handleRemove}
+                                    onSubmit={() => {
+                                    }}
                                     liquidityRemoved={liquidityRemoved}
                                     poolAccount={poolAccount}
                                 />

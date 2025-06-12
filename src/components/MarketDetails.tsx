@@ -7,15 +7,16 @@ import {GridLoader} from "react-spinners";
 import MarketPriceChart, {ChartPoint} from "@/components/MarketPriceChart";
 import MarketTradeSection, {TransactionDetails} from "@/components/MarketTradeSection";
 import {toast} from "sonner";
-import LiquidityPoolSection from "@/components/LiquidityPool";
+import LiquidityPoolSection from "@/components/LiquidityPoolSection";
 import AddInitialLiquidityModal from "@/components/AddInitialLiquidityModal";
+import {DUMMY_PUBKEY} from "@/lib/constants";
 
 export default function MarketDetails() {
     const {marketPubkey} = useParams();          // ← from route
 
     const {program} = useAnchorProgram();
     const [market, setMarket] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+    const [marketDataLoading, setmarketDataLoading] = useState(true);
     const [question, setQuestion] = useState<string>("");
     const [createdAt, setCreatedAt] = useState<string>("");
     const [_yesProb, setYesProb] = useState<number>(50);
@@ -30,11 +31,13 @@ export default function MarketDetails() {
     const [yesPrice, setYesPrice] = useState<number>(-1);
     const [noPrice, setNoPrice] = useState<number>(-1);
     const [transactionDetails, setTransactionDetails] = useState<TransactionDetails[]>([]);
+    const [reloadLiquidityPool, setReloadLiquidityPool] = useState(0);
 
     useEffect(() => {
         if (!marketPubkey) return;
         (async () => {
-            setLoading(true);
+            setmarketDataLoading(true);
+            console.log("marketDataLoading", marketDataLoading);
             try {
                 /** ---------- on-chain fetch ---------- **/
                 const pubkey = new PublicKey(marketPubkey);
@@ -84,10 +87,10 @@ export default function MarketDetails() {
             } catch (err) {
                 console.error("Failed to load market page:", err);
             } finally {
-                setLoading(false);
+                setmarketDataLoading(false);
             }
         })();
-    }, [marketPubkey, program]);
+    }, [marketPubkey, program, reloadLiquidityPool]);
 
     useEffect(() => {
         const fetchDbMarketData = async () => {
@@ -130,7 +133,7 @@ export default function MarketDetails() {
         computeChartData();
     }, [reloadMarket, transactionDetails, yesPrice, noPrice]);
 
-    if (loading) {
+    if (marketDataLoading && reloadLiquidityPool === 0) {
         return (
             <div className="flex justify-center items-center h-80">
                 <GridLoader color="#a6d1e6"/>
@@ -272,9 +275,13 @@ export default function MarketDetails() {
                 {poolAccount ? (
                     <LiquidityPoolSection
                         market={market}
+                        marketPubkey={marketPubkey ? new PublicKey(marketPubkey) : DUMMY_PUBKEY}
                         poolAccount={poolAccount}
                         reloadMarket={reloadMarket}
                         setReloadMarket={setReloadMarket}
+                        setReloadLiquidityPool={setReloadLiquidityPool}
+                        reloadLiquidityPool={reloadLiquidityPool}
+                        marketDataLoading={marketDataLoading}
                     />
                 ) : (
                     <p className="text-slate-400">Loading pool …</p>

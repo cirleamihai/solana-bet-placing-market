@@ -4,7 +4,7 @@ export const getAddLiquidityPotentialBenefits = (
     noLiquidity: number,
     moneyToAdd: number,
 ) => {
-    if (yesLiquidity === noLiquidity) {
+    if (yesLiquidity === noLiquidity || moneyToAdd == 0) {
         return {
             lpShares: moneyToAdd,
             yesShares: 0,

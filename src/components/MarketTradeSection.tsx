@@ -463,7 +463,7 @@ export default function MarketTradeSection({
                                                 hour: "2-digit",
                                                 minute: "2-digit",
                                                 second: "2-digit",
-                                                hour12: true,
+                                                hour12: false,
                                             })}
                                         </div>
 
@@ -490,11 +490,11 @@ export default function MarketTradeSection({
                                                 <div
                                                     className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
                                                 <span className="text-slate-300">
-                                              Average price ${(trade.money_spent / trade.amount_purchased).toFixed(2)}/ share
+                                              Average ${(trade.money_spent / trade.amount_purchased).toFixed(2)}/ share
                                             </span>
                                             </div>
                                             <span className="text-slate-400 font-bold">
-                                          ${trade.money_spent.toFixed(2).toLocaleString()}
+                                          ${trade.money_spent.toLocaleString("en-US", {maximumFractionDigits: 2, minimumFractionDigits: 2})}
                                         </span>
                                         </div>
                                     </motion.li>
