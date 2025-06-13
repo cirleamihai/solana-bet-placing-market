@@ -238,7 +238,7 @@ export default function RemoveLiquidityForm({
 
 
             {wallet?.publicKey ? (
-                <div className="mt-12">
+                <div className="mt-10">
                     {/* ── Chart & Shares Grid ── */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                         <div

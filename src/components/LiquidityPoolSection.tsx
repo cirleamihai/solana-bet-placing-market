@@ -228,9 +228,9 @@ export default function LiquidityPoolSection({
                         <h3 className="text-sm font-semibold mt-2 mr-3">Received</h3>
                     </div>
 
-                    <ul className="custom-scroll space-y-1 overflow-y-auto pr-1">
+                    <ul className="custom-scroll max-h-[110px] space-y-1 overflow-y-auto pr-1">
                         <AnimatePresence initial={false}>
-                            {[1, 2, 3].slice(0, 25).map((trade, _i) => (
+                            {[1, 2, 3, 4, 5, 6, 7, 8].slice(0, 25).map((trade, _i) => (
                                 <motion.li
                                     key={trade} // ✅ Use unique key
                                     initial={{opacity: 0, y: 10}}
