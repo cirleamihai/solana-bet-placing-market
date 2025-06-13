@@ -276,7 +276,8 @@ export default function MarketTradeSection({
             }
 
             // Set the remaining tokens for yes and no outcomes
-            if (blockchainConfirmation?.slot ?? 0 > lastEventSlot.current) {
+            if ((blockchainConfirmation?.slot ?? 0) > lastEventSlot.current) {
+                console.log("Tx Slot: ", blockchainConfirmation?.slot ?? 0, "Last Event Slot: ", lastEventSlot.current);
                 lastEventSlot.current = blockchainConfirmation?.slot ?? 0;
                 setYesRemainingTokens(Number(transaction.poolRemainingYesTokens));
                 setNoRemainingTokens(Number(transaction.poolRemainingNoTokens));
