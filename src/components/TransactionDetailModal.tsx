@@ -140,7 +140,7 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
                             value={
                                 transaction.added_liquidity
                                     ? `${transaction.lp_shares_received.toLocaleString()} LP Shares`
-                                    : `$${transaction.usd_received.toLocaleString()}`
+                                    : `$${transaction.usd_received.toLocaleString()} USD-UBB`
                             }
                         />
                         <StatBox
