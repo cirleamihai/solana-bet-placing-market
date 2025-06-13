@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from "react";
+import React, {Dispatch, useCallback, useEffect, useState} from "react";
 import {Button} from "@/components/ui/button";
 import {useAnchorProgram} from "@/lib/anchor";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
@@ -37,6 +37,7 @@ interface TradeInfo {
     reloadMarket: number,
     setReloadMarket: (value: any) => void,
     transactionDetails: TransactionDetails[],
+    setTransactionDetails: Dispatch<React.SetStateAction<TransactionDetails[]>>,
     setYesPrice: (price: number) => void,
     setNoPrice: (price: number) => void
 }
@@ -48,6 +49,7 @@ export default function MarketTradeSection({
                                                reloadMarket,
                                                setReloadMarket,
                                                transactionDetails,
+                                               setTransactionDetails,
                                                setYesPrice,
                                                setNoPrice
                                            }: TradeInfo) {
@@ -81,7 +83,7 @@ export default function MarketTradeSection({
 
     useEffect(() => {
         const computeInvestmentPrice = () => {
-            if (!transactionDetails || !wallet || !wallet.publicKey || !yesSharesOwned || !noSharesOwned) return;
+            if (!transactionDetails || !wallet || !wallet.publicKey) return;
             const userTransactions = transactionDetails.filter((tx: TransactionDetails) => tx.user_pubkey === wallet?.publicKey?.toBase58());
             const totalInvested = userTransactions.reduce((acc, tx) => acc + tx.money_spent, 0);
             const profit = yesSharesOwned * Number(yesPrice) + noSharesOwned * Number(noPrice) - totalInvested;
@@ -95,8 +97,23 @@ export default function MarketTradeSection({
 
     const handleNewPurchaseBlockchainEvent = useCallback(
         async (event: { txSignature: string, transaction: any }) => {
-            setReloadMarket((prev: any) => prev + 1);
             console.log('Transaction details:', event.transaction);
+            const purchasedOutcome = event.transaction.wantedSharesPurchasedMint.toBase58() === market.yesMint.toBase58() ? "yes" : "no";
+
+            // Add the new transaction to the transaction details list
+            const newTransaction: TransactionDetails = {
+                tx_signature: event.txSignature,
+                market_pubkey: marketKey.toBase58(),
+                user_pubkey: wallet?.publicKey?.toBase58() || "",
+                purchased_outcome: purchasedOutcome,
+                amount_purchased: Number(event.transaction.wantedSharesPurchased) / 10 ** 9, // Convert from decimals to shares
+                money_spent: Number(event.transaction.amount) / 10 ** 9, // Convert from lamports to USD
+                created_at: new Date().toISOString(), // Use current time for simplicity
+                yes_price: Number(event.transaction.yesPriceBeforePurchase) / 10 ** 9,
+                no_price: Number(event.transaction.noPriceBeforePurchase) / 10 ** 9,
+            };
+            setTransactionDetails([newTransaction, ...transactionDetails.slice()]); // Keep only the latest 25 transactions
+            setReloadMarket((prev: any) => prev + 1);
 
             // Set the remaining tokens for yes and no outcomes
             setYesRemainingTokens(Number(event.transaction.poolRemainingYesTokens));
@@ -194,6 +211,7 @@ export default function MarketTradeSection({
             // @ts-ignore
             const provider = program.provider as AnchorProvider;
             const _sig = await provider.sendAndConfirm(tx);
+            const purchasedAt = new Date().toISOString()
 
             // Confirm the transaction
             const latestBlockHash = await connection.getLatestBlockhash();
@@ -224,6 +242,7 @@ export default function MarketTradeSection({
                         money_spent: Number(transaction.amount) / 10 ** 9,
                         yes_price: yesPrice,
                         no_price: noPrice,
+                        created_at: purchasedAt
                     }
                 ],
                 {onConflict: "tx_signature",}
@@ -496,7 +515,10 @@ export default function MarketTradeSection({
                                             </span>
                                             </div>
                                             <span className="text-slate-400 font-bold">
-                                          ${trade.money_spent.toLocaleString("en-US", {maximumFractionDigits: 2, minimumFractionDigits: 2})}
+                                          ${trade.money_spent.toLocaleString("en-US", {
+                                                maximumFractionDigits: 2,
+                                                minimumFractionDigits: 2
+                                            })}
                                         </span>
                                         </div>
                                     </motion.li>

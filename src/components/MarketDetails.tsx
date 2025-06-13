@@ -107,7 +107,7 @@ export default function MarketDetails() {
         const fetchDbMarketData = async () => {
             if (!marketPubkey) return;
 
-            const {data, error} = await supabase
+            let {data, error} = await supabase
                 .from("bets")
                 .select()
                 .eq("market_pubkey", marketPubkey)
@@ -117,8 +117,11 @@ export default function MarketDetails() {
                 console.log("Error fetching market data:", error);
                 toast.error("Error fetching market data.");
             }
-            if (data) {
-                setTransactionDetails(data);
+            data = data || [];
+            const mergedTransaction: TransactionDetails[] = [...transactionDetails, ...data];
+            const uniqueTransactions = Array.from(new Map(mergedTransaction.map(obj => [obj.tx_signature, obj])).values());
+            if (uniqueTransactions.length >= 0) {
+                setTransactionDetails(uniqueTransactions);
             }
         }
         fetchDbMarketData();
@@ -203,6 +206,7 @@ export default function MarketDetails() {
                     transactionDetails={transactionDetails}
                     setYesPrice={setYesPrice}
                     setNoPrice={setNoPrice}
+                    setTransactionDetails={setTransactionDetails}
                 />
             </div>
 
