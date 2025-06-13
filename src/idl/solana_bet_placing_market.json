@@ -867,6 +867,10 @@
             "type": "u64"
           },
           {
+            "name": "pool_total_liquidity",
+            "type": "u64"
+          },
+          {
             "name": "usd_added_to_pool",
             "type": "u64"
           },
