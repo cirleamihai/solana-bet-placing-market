@@ -112,11 +112,12 @@ export default function MarketDetails() {
                 .from("bets")
                 .select()
                 .eq("market_pubkey", marketPubkey)
-                .order("created_at", {ascending: false})
+                .order("tx_slot", {ascending: false})
 
             if (error) {
                 console.log("Error fetching market data:", error);
                 toast.error("Error fetching market data.");
+                return
             }
             data = data || [];
             const mergedTransaction: TransactionDetails[] = [...transactionDetails, ...data];
@@ -129,7 +130,7 @@ export default function MarketDetails() {
                     // Fallback: sort by slot (descending)
                     return b.tx_slot - a.tx_slot;
                 });
-            if (uniqueTransactions.length >= 0) {
+            if (uniqueTransactions.length > 0) {
                 setTransactionDetails(uniqueTransactions);
             }
         }

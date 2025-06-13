@@ -183,7 +183,7 @@ export default function AddLiquidityForm({
                     user_pubkey: wallet?.publicKey,
                     added_liquidity: true,
                     created_at: purchasedAt,
-                    usd_used: Number(amount),
+                    usd_used: Number(transaction.amount) / 10 ** 9,
                     lp_shares_received: transaction ? Number(transaction.liquiditySharesGained) / 10 ** 9 : 0,
                     received_outcome_shares: received_outcome_shares,
                     received_outcome: received_outcome,

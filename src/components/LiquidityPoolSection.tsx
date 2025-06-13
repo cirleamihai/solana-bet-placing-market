@@ -1,4 +1,4 @@
-import React, {Dispatch, SetStateAction, useEffect, useMemo, useState} from "react";
+import React, {Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState} from "react";
 import {PublicKey} from "@solana/web3.js";
 import {useAnchorProgram} from "@/lib/anchor";
 import {
@@ -14,6 +14,10 @@ import RemoveLiquidityForm from "@/components/RemoveLiquidityForm";
 import {AnimatePresence, motion} from "framer-motion";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
 import {getRemoveLiquidityPotentialBenefits} from "@/blockchain/computeLiquidityBenefits";
+import {getTransactionDetails, useLiquidityPoolListener} from "@/blockchain/heliusEventListener";
+import {supabase} from "@/lib/supabase";
+import {toast} from "sonner";
+import {EventParser} from "@coral-xyz/anchor";
 
 type Props = {
     market: any;
@@ -26,6 +30,22 @@ type Props = {
     marketDataLoading: boolean
 };
 
+interface LiquidityPoolTransaction {
+    tx_signature: string,
+    tx_slot: number,
+    market_pubkey: string,
+    user_pubkey: string,
+    added_liquidity: boolean,
+    created_at: string,
+    usd_used: number,
+    lp_shares_used: number,
+    usd_received: number,
+    lp_shares_received: number,
+    received_outcome_shares: number,
+    received_outcome: string,
+    lp_total_shares: number,
+}
+
 export default function LiquidityPoolSection({
                                                  market,
                                                  marketPubkey,
@@ -36,13 +56,15 @@ export default function LiquidityPoolSection({
                                                  setReloadLiquidityPool,
                                                  marketDataLoading,
                                              }: Props) {
-    const {connection, wallet} = useAnchorProgram();
+    const {connection, wallet, program} = useAnchorProgram();
 
     const [action, setAction] = useState<"add" | "remove">("add");
     const [prevAction, setPrevAction] = useState<"add" | "remove">("add");
     const [submitting, setSubmitting] = useState(false);
     const [userShares, setUserShares] = useState<number>(0);
     const [userSharesValue, setUserSharesValue] = useState<number>(0);
+    const [parser, _setParser] = useState(new EventParser(program.programId, program.coder))
+    const [poolTransactions, setPoolTransactions] = useState<LiquidityPoolTransaction[]>([]);
     const liquidityPoolShares = useMemo(() => {
         if (!poolAccount || !poolAccount.liquidityShares) return 0;
         return Number(poolAccount.liquidityShares) / 10 ** 9;
@@ -51,6 +73,96 @@ export default function LiquidityPoolSection({
         if (liquidityPoolShares === 0) return 0;
         return (userShares / liquidityPoolShares) * 100;
     }, [userShares, liquidityPoolShares]);
+
+    // Listening to changes on chain for the liquidity pool history
+    const handleNewLiquidityAddedAction = useCallback(
+        async (event: { transactionData: any, txSignature: string }) => {
+            if (!wallet || !wallet.publicKey) {
+                console.error("Wallet not connected");
+                return;
+            }
+            const { transactionSlot, createdAt, userKey } = await getTransactionDetails(connection, event);
+            if (!transactionSlot || !createdAt || !userKey) {
+                console.error("Failed to get transaction details. Tx: ", event.txSignature);
+                return;
+            }
+
+            let receivedOutcomeShares, receivedOutcome;
+            const receivedYesShares = Number(event.transactionData.yesGivenToUser) / 10 ** 9;
+            const receivedNoShares = Number(event.transactionData.noGivenToUser) / 10 ** 9;
+
+            if (receivedYesShares > 0) {
+                receivedOutcomeShares = receivedYesShares;
+                receivedOutcome = "yes";
+            } else {
+                receivedOutcomeShares = receivedNoShares;
+                receivedOutcome = "no";
+            }
+
+            const newTransaction: LiquidityPoolTransaction = {
+                tx_signature: event.txSignature,
+                tx_slot: transactionSlot,
+                market_pubkey: marketPubkey.toBase58(),
+                user_pubkey: userKey,
+                added_liquidity: true,
+                created_at: createdAt,
+                usd_used: Number(event.transactionData.amount) / 10 ** 9,
+                lp_shares_used: 0,
+                usd_received: 0,
+                lp_shares_received: Number(event.transactionData.liquiditySharesGained) / 10 ** 9,
+                received_outcome_shares: receivedOutcomeShares,
+                received_outcome: receivedOutcome,
+                lp_total_shares: Number(event.transactionData.poolTotalLiquidityShares) / 10 ** 9,
+            }
+            console.log(newTransaction);
+            const newTransactions = [newTransaction, ...poolTransactions].sort(
+                (a, b) => b.tx_slot - a.tx_slot
+            );
+            setPoolTransactions(newTransactions.slice(0, 25)); // Keep only the latest 25 transactions
+            setReloadMarket((prev: any) => prev + 1);
+
+        }, [])
+
+    useLiquidityPoolListener(
+        handleNewLiquidityAddedAction,
+        handleNewLiquidityAddedAction,
+        marketPubkey,
+        parser
+    )
+
+    useEffect(() => {
+        const fetchDbMarketData = async () => {
+            if (!marketPubkey) return;
+
+            let {data, error} = await supabase
+                .from("liquidity_pool_history").select()
+                .eq("market_pubkey", marketPubkey.toBase58())
+                .order("tx_slot", {ascending: false})
+
+            if (error) {
+                console.error("Error fetching liquidity pool history:", error);
+                toast.error("Failed to fetch liquidity pool history");
+                return;
+            }
+
+            data = data || [];
+            const mergedTransactions: LiquidityPoolTransaction[] = [...poolTransactions, ...data];
+            const uniqueTransactions = Array.from(new Map(mergedTransactions.map(tx => [tx.tx_signature, tx])).values())
+                .sort((a, b) => {
+                    const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+
+                    if (timeDiff !== 0) return timeDiff;
+
+                    // Fallback: sort by slot (descending)
+                    return b.tx_slot - a.tx_slot;
+                });
+            if (uniqueTransactions.length > 0) {
+                setPoolTransactions(uniqueTransactions);
+            }
+        }
+
+        fetchDbMarketData();
+    }, []);
 
     useEffect(() => {
         (async () => {
@@ -230,9 +342,9 @@ export default function LiquidityPoolSection({
 
                     <ul className="custom-scroll max-h-[110px] space-y-1 overflow-y-auto pr-1">
                         <AnimatePresence initial={false}>
-                            {[1, 2, 3, 4, 5, 6, 7, 8].slice(0, 25).map((trade, _i) => (
+                            {poolTransactions.slice(0, 25).map((transaction, _i) => (
                                 <motion.li
-                                    key={trade} // ✅ Use unique key
+                                    key={transaction.tx_signature} // ✅ Use unique key
                                     initial={{opacity: 0, y: 10}}
                                     animate={{opacity: 1, y: 0}}
                                     exit={{opacity: 0, y: -10}}
@@ -241,8 +353,8 @@ export default function LiquidityPoolSection({
                                 >
                                     {/* Timestamp */}
                                     <div
-                                        className="text-xs text-blue-400 italic min-w-[100px] text-left pr-2 leading-none">
-                                        {new Date().toLocaleString("en-US", {
+                                        className="text-xs text-blue-400 italic min-w-[90px] text-left pr-2 leading-none">
+                                        {new Date(transaction.created_at).toLocaleString("en-US", {
                                             month: "short",
                                             day: "numeric",
                                             hour: "2-digit",
@@ -263,22 +375,43 @@ export default function LiquidityPoolSection({
                                                 className="text-slate-300"
                                                 title={wallet?.publicKey.toBase58()}
                                             >
-                                              User QLa13...7d3f
+                                              User {transaction.user_pubkey.slice(0, 5)}...{transaction.user_pubkey.slice(-4)}
                                             </span>
 
                                             <div
                                                 className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
-                                            <span className="min-w-[53px] inline-block font-mono text-slate-300 text-center">
-                                                    REMOVED
+                                            <span
+                                                className="min-w-[53px] inline-block font-mono text-slate-300 text-center">
+                                                    {transaction.added_liquidity ? "ADDED" : "REMOVED"}
                                             </span>
                                             <div
                                                 className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
                                             <span className="text-slate-300">
-                                              ${(23001).toLocaleString("en-US")} in the LP
+                                              {
+                                                  transaction.added_liquidity ?
+                                                        `$${transaction.usd_used.toLocaleString("en-US", {
+                                                            maximumFractionDigits: 2,
+                                                            minimumFractionDigits: 2
+                                                        })} in the pool` :
+                                                        `${transaction.lp_shares_used.toLocaleString("en-US", {
+                                                            maximumFractionDigits: 2,
+                                                            minimumFractionDigits: 2
+                                                        })} LPs from the pool`
+                                              }
                                             </span>
                                         </div>
                                         <span className="text-slate-400 font-bold">
-                                          233.12 LP Shares
+                                          {
+                                              transaction.added_liquidity ?
+                                                    `${transaction.lp_shares_received.toLocaleString("en-US", {
+                                                        maximumFractionDigits: 2,
+                                                        minimumFractionDigits: 2
+                                                    })} LP shares` :
+                                                    `$${transaction.usd_received.toLocaleString("en-US", {
+                                                        maximumFractionDigits: 2,
+                                                        minimumFractionDigits: 2
+                                                    })}`
+                                          }
                                         </span>
                                     </div>
                                 </motion.li>

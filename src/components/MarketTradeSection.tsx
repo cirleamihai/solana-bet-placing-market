@@ -10,7 +10,7 @@ import {USD_MINT} from "@/lib/constants";
 import {toast} from "sonner";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
 import {AnchorProvider, EventParser} from "@coral-xyz/anchor";
-import {usePurchaseSharesListener} from "@/blockchain/heliusEventListener";
+import {getTransactionDetails, usePurchaseSharesListener} from "@/blockchain/heliusEventListener";
 import {supabase} from "@/lib/supabase";
 import {motion, AnimatePresence} from "framer-motion";
 import {Frown} from "lucide-react";
@@ -99,47 +99,41 @@ export default function MarketTradeSection({
     }, [reloadMarket, yesPrice, noPrice, yesSharesOwned, noSharesOwned]);
 
     const handleNewPurchaseBlockchainEvent = useCallback(
-        async (event: { txSignature: string, transaction: any }) => {
+        async (event: { txSignature: string, transactionData: any }) => {
             // We are gonna get the blockchain transaction
-            const transaction = await connection.getTransaction(event.txSignature, {
-                commitment: 'confirmed',
-                maxSupportedTransactionVersion: 0,
-            })
-            if (!transaction) {
-                console.error("Transaction not found:", event.txSignature);
+            const { transactionSlot, createdAt, userKey } = await getTransactionDetails(connection, event);
+            if (!transactionSlot || !createdAt || !userKey) {
+                console.error("Failed to get transaction details. Tx: ", event.txSignature);
                 return;
             }
 
-            const transactionSlot = transaction.slot;
-            const createdAt = transaction?.blockTime ? new Date(transaction.blockTime * 1000).toISOString() : new Date().toISOString();
-
-            console.log('Transaction details:', event.transaction);
-            const purchasedOutcome = event.transaction.wantedSharesPurchasedMint.toBase58() === market.yesMint.toBase58() ? "yes" : "no";
+            console.log('Transaction details:', event.transactionData);
+            const purchasedOutcome = event.transactionData.wantedSharesPurchasedMint.toBase58() === market.yesMint.toBase58() ? "yes" : "no";
 
             // Add the new transaction to the transaction details list
             const newTransaction: TransactionDetails = {
                 tx_signature: event.txSignature,
                 market_pubkey: marketKey.toBase58(),
-                user_pubkey: wallet?.publicKey?.toBase58() || "",
+                user_pubkey: userKey,
                 purchased_outcome: purchasedOutcome,
-                amount_purchased: Number(event.transaction.wantedSharesPurchased) / 10 ** 9, // Convert from decimals to shares
-                money_spent: Number(event.transaction.amount) / 10 ** 9, // Convert from lamports to USD
+                amount_purchased: Number(event.transactionData.wantedSharesPurchased) / 10 ** 9, // Convert from decimals to shares
+                money_spent: Number(event.transactionData.amount) / 10 ** 9, // Convert from lamports to USD
                 created_at: createdAt, // Use current time for simplicity
                 tx_slot: transactionSlot,
-                yes_price: Number(event.transaction.yesPriceBeforePurchase) / 10 ** 9,
-                no_price: Number(event.transaction.noPriceBeforePurchase) / 10 ** 9,
+                yes_price: Number(event.transactionData.yesPriceBeforePurchase) / 10 ** 9,
+                no_price: Number(event.transactionData.noPriceBeforePurchase) / 10 ** 9,
             };
-            setTransactionDetails([newTransaction, ...transactionDetails.slice()]); // Keep only the latest 25 transactions
+            setTransactionDetails([newTransaction, ...transactionDetails]); // Keep only the latest 25 transactions
             setReloadMarket((prev: any) => prev + 1);
 
             // Set the remaining tokens for yes and no outcomes
             if (transactionSlot > lastEventSlot.current) {
                 lastEventSlot.current = transactionSlot;
-                setYesRemainingTokens(Number(event.transaction.poolRemainingYesTokens));
-                setNoRemainingTokens(Number(event.transaction.poolRemainingNoTokens));
+                setYesRemainingTokens(Number(event.transactionData.poolRemainingYesTokens));
+                setNoRemainingTokens(Number(event.transactionData.poolRemainingNoTokens));
             }
 
-        }, [setReloadMarket]);
+        }, []);
 
     // Listen to the Helius events for market updates
     usePurchaseSharesListener(
@@ -501,7 +495,7 @@ export default function MarketTradeSection({
                                     >
                                         {/* Timestamp */}
                                         <div
-                                            className="text-xs text-blue-400 italic min-w-[100px] text-left pr-2 leading-none">
+                                            className="text-xs text-blue-400 italic min-w-[90px] text-left pr-2 leading-none">
                                             {new Date(trade.created_at).toLocaleString("en-US", {
                                                 month: "short",
                                                 day: "numeric",

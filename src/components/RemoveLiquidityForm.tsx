@@ -146,10 +146,10 @@ export default function RemoveLiquidityForm({
                 const receivedShares = Number(transaction.receivedLowestOutcomeTokens) / 10 ** 9;
                 if (market.yesMint.toBase58() === transaction.receivedLowestOutcomeMint.toBase58()){
                     received_outcome_shares = receivedShares;
-                    received_outcome = "YES";
+                    received_outcome = "yes";
                 } else {
                     received_outcome_shares = receivedShares;
-                    received_outcome = "NO";
+                    received_outcome = "no";
                 }
             } else {
                 received_outcome_shares = 0;

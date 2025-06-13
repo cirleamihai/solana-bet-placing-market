@@ -16,7 +16,6 @@ export const usePurchaseSharesListener = (
     handleNewPurchase: (event: any) => void,  // Callback to handle new purchase events
 ) => {
     useEffect(() => {
-        console.log("Helius WS Listener Remounted. Time: ", new Date().toISOString());
         if (!marketKey) return;
 
         const connection = getWSConnection("devnet");
@@ -29,7 +28,7 @@ export const usePurchaseSharesListener = (
                 for (const event of parsedEvents) {
                     const {name: eventName, data: eventData} = event;
                     if (eventName === "purchasedOutcomeSharesEvent") {
-                        handleNewPurchase({transaction: eventData, txSignature: logInfo.signature});
+                        handleNewPurchase({transactionData: eventData, txSignature: logInfo.signature});
                     }
                 }
             },
@@ -53,6 +52,45 @@ export const usePurchaseSharesListener = (
         };
     }, [marketKey?.toBase58(), programId.toBase58()]);
 };
+
+export const useLiquidityPoolListener = (
+    handleNewLiquidityAddedAction: (event: any) => void,
+    handleNewLiquidityRemovedAction: (event: any) => void,
+    marketKey: PublicKey,
+    parser: EventParser
+) => {
+    useEffect(() => {
+        if (!marketKey) return;
+
+        const connection = getWSConnection("devnet");
+
+        const logSubscription = connection.onLogs(
+            marketKey,
+            async (logInfo) => {
+                const parsedEvents = [...parser.parseLogs(logInfo.logs)];
+                for (const event of parsedEvents) {
+                    const {name: eventName, data: eventData} = event;
+                    if (eventName === "liquidityAddedEvent") {
+                        handleNewLiquidityAddedAction({
+                            transactionData: eventData,
+                            txSignature: logInfo.signature
+                        });
+                    } else if (eventName === "liquidityRemovedEvent") {
+                        handleNewLiquidityRemovedAction({
+                            transactionData: eventData,
+                            txSignature: logInfo.signature
+                        });
+                    }
+                }
+            },
+            'confirmed'
+        );
+
+        return () => {
+            connection.removeOnLogsListener(logSubscription);
+        };
+    }, [marketKey.toBase58()]);
+}
 
 export const listenToAccountChangeHelius = (
     setAccountChange: React.Dispatch<React.SetStateAction<number>>,
@@ -78,7 +116,7 @@ export const listenToAccountChangeHelius = (
 export const listenToMarketChanges = (
     setMarketStatusChanged: React.Dispatch<React.SetStateAction<number>>,
     programId: PublicKey
-)=> {
+) => {
     useEffect(() => {
         const connection = getWSConnection("devnet");
 
@@ -95,4 +133,35 @@ export const listenToMarketChanges = (
             connection.removeOnLogsListener(logSubscription);
         };
     }, [programId.toBase58()]);
+}
+
+export const getTransactionDetails = async (
+    connection: Connection,
+    event: { txSignature: string; transactionData: any; } // Adjust the type as needed
+) => {
+    // noinspection DuplicatedCode
+    const transaction = await connection.getTransaction(event.txSignature, {
+        commitment: 'confirmed',
+        maxSupportedTransactionVersion: 0,
+    })
+    if (!transaction) {
+        return {
+            transactionSlot: null,
+            createdAt: null,
+            userKey: null
+        };
+    }
+
+    const transactionSlot = transaction.slot;
+    const createdAt = transaction.blockTime ? new Date(transaction.blockTime * 1000).toISOString() : new Date().toISOString();
+    const transactionMessage = transaction.transaction.message;
+    const userKey = transaction.transaction.message.getAccountKeys().staticAccountKeys
+        .map((key) => key.toBase58())
+        .filter((_, idx) => transactionMessage.isAccountSigner(idx))[0];
+
+    return {
+        transactionSlot,
+        createdAt,
+        userKey
+    }
 }
