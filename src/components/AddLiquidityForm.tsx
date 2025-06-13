@@ -7,11 +7,12 @@ import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenA
 import {USD_MINT} from "@/lib/constants";
 import {useAnchorProgram} from "@/lib/anchor";
 import {PublicKey, Transaction} from "@solana/web3.js";
-import {AnchorProvider, BN} from "@coral-xyz/anchor";
+import {AnchorProvider, BN, EventParser} from "@coral-xyz/anchor";
 import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
 import {toast} from "sonner";
 import {useMarketContext} from "@/components/MarketContext";
 import {Frown} from "lucide-react";
+import {supabase} from "@/lib/supabase";
 
 type Props = {
     submitting: boolean;
@@ -47,6 +48,7 @@ export default function AddLiquidityForm({
     const [liquidityAdded, setLiquidityAdded] = useState(false);
     const chartDataRef = useRef([]);
     const justPurchased = useRef(false);
+    const [parser, _setParser] = useState(new EventParser(program.programId, program.coder))
     const MAX_AMOUNT = wallet?.publicKey ? userBalance : CONST_MAX_AMOUNT;
 
     const handleAddAmount = (value: number) => {
@@ -135,6 +137,60 @@ export default function AddLiquidityForm({
             const provider = program.provider as AnchorProvider;
             const _sig = await provider.sendAndConfirm(tx);
 
+            // Confirm the transaction
+            const latestBlockHash = await connection.getLatestBlockhash();
+            await connection.confirmTransaction({
+                blockhash: latestBlockHash.blockhash,
+                lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+                signature: _sig
+            }, 'confirmed');
+
+            // Parse the transaction logs to find the purchased shares event
+            const blockchainConfirmation = await connection.getTransaction(_sig, {
+                commitment: 'confirmed',
+                maxSupportedTransactionVersion: 0,
+            });
+            const purchasedAt = blockchainConfirmation?.blockTime ? new Date(blockchainConfirmation.blockTime * 1000).toISOString() : new Date().toISOString();
+            const parsedEvents = [...parser.parseLogs(blockchainConfirmation?.meta?.logMessages || [])];
+            const purchasedEvent = parsedEvents.find(event => event.name === "liquidityAddedEvent");
+            const transaction = purchasedEvent?.data;
+
+            let received_outcome_shares, received_outcome;
+            if (transaction) {
+                const receivedYesShares = Number(transaction.yesGivenToUser) / 10 ** 9;
+                const receivedNoShares = Number(transaction.noGivenToUser) / 10 ** 9;
+                if (receivedYesShares > 0) {
+                    received_outcome_shares = receivedYesShares;
+                    received_outcome = "yes";
+                } else {
+                    received_outcome_shares = receivedNoShares;
+                    received_outcome = "no";
+                }
+            } else {
+                received_outcome_shares = 0;
+                received_outcome = "";
+            }
+
+            // Log the transaction details to our database
+            const {error} = await supabase.from("liquidity_pool_history").upsert(
+                [{
+                    tx_signature: _sig,
+                    market_pubkey: marketKey,
+                    user_pubkey: wallet?.publicKey,
+                    added_liquidity: true,
+                    created_at: purchasedAt,
+                    usd_used: Number(amount),
+                    lp_shares_received: transaction ? Number(transaction.liquiditySharesGained) / 10 ** 9 : 0,
+                    received_outcome_shares: received_outcome_shares,
+                    received_outcome: received_outcome,
+                    lp_total_shares: transaction ? Number(transaction.poolTotalLiquidityShares) / 10 ** 9 : 0,
+                }]
+            )
+
+            if (error) {
+                throw new Error(error.message);
+            }
+
             toast.success("Liquidity added successfully!")
 
             justPurchased.current = true;
@@ -148,7 +204,7 @@ export default function AddLiquidityForm({
 
         } catch (error) {
             // @ts-ignore
-            console.log(error.getLogs());
+            console.log(error);
             toast.error("Failed to add liquidity. Please try again.")
         } finally {
             setSubmitting(false);
