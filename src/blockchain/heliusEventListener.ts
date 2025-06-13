@@ -8,15 +8,15 @@ export const getWSConnection = (cluster: string): Connection => {
     return new Connection(endpoint, 'confirmed');
 }
 
-export const listenToPurchaseSharesEventHelius = (
+export const usePurchaseSharesListener = (
     marketKey: PublicKey,
     programId: PublicKey,
     setReloadShares: React.Dispatch<React.SetStateAction<number>>,
     parser: EventParser,
     handleNewPurchase: (event: any) => void,  // Callback to handle new purchase events
 ) => {
-
     useEffect(() => {
+        console.log("Helius WS Listener Remounted. Time: ", new Date().toISOString());
         if (!marketKey) return;
 
         const connection = getWSConnection("devnet");
@@ -51,7 +51,7 @@ export const listenToPurchaseSharesEventHelius = (
             connection.removeOnLogsListener(logSubscription);
             connection.removeAccountChangeListener(accountSubscription);
         };
-    }, [marketKey, programId, handleNewPurchase]);
+    }, [marketKey?.toBase58(), programId.toBase58()]);
 };
 
 export const listenToAccountChangeHelius = (
@@ -72,7 +72,7 @@ export const listenToAccountChangeHelius = (
         return () => {
             connection.removeAccountChangeListener(accountChangeSubscription);
         }
-    }, [walletPublicKey]);
+    }, [walletPublicKey.toBase58()]);
 }
 
 export const listenToMarketChanges = (
@@ -94,5 +94,5 @@ export const listenToMarketChanges = (
         return () => {
             connection.removeOnLogsListener(logSubscription);
         };
-    }, [programId, setMarketStatusChanged]);
+    }, [programId.toBase58()]);
 }

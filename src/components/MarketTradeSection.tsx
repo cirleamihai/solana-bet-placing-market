@@ -10,7 +10,7 @@ import {USD_MINT} from "@/lib/constants";
 import {toast} from "sonner";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
 import {AnchorProvider, EventParser} from "@coral-xyz/anchor";
-import {listenToPurchaseSharesEventHelius} from "@/blockchain/heliusEventListener";
+import {usePurchaseSharesListener} from "@/blockchain/heliusEventListener";
 import {supabase} from "@/lib/supabase";
 import {motion, AnimatePresence} from "framer-motion";
 import {Frown} from "lucide-react";
@@ -123,7 +123,7 @@ export default function MarketTradeSection({
         }, [setReloadMarket]);
 
     // Listen to the Helius events for market updates
-    listenToPurchaseSharesEventHelius(
+    usePurchaseSharesListener(
         marketKey,
         program.programId,
         setReloadMarket,
