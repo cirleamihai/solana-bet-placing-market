@@ -211,7 +211,6 @@ export default function MarketTradeSection({
             // @ts-ignore
             const provider = program.provider as AnchorProvider;
             const _sig = await provider.sendAndConfirm(tx);
-            const purchasedAt = new Date().toISOString()
 
             // Confirm the transaction
             const latestBlockHash = await connection.getLatestBlockhash();
@@ -220,6 +219,7 @@ export default function MarketTradeSection({
                 lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
                 signature: _sig
             }, 'confirmed');
+            const purchasedAt = new Date().toISOString()
 
             // Parse the transaction logs to find the purchased shares event
             const blockchainConfirmation = await connection.getTransaction(_sig, {
