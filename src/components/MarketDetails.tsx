@@ -176,7 +176,7 @@ export default function MarketDetails() {
     }
 
     return (
-        <main className="w-[80%] mx-auto mt-10 px-4 md:px-0 text-white">
+        <main className="w-[85%] mx-auto mt-10 px-4 md:px-0 text-white">
             {/* ── Top summary row ─────────────────────── */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-5">
                 <h1 className="text-2xl md:text-3xl font-semibold leading-snug break-words">

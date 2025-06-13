@@ -287,7 +287,7 @@ export default function LiquidityPoolSection({
                     <div className="grid grid-cols-4 grid-rows-2 gap-4">
                         {/* ─── Pie Chart ─── */}
                         <div className="row-span-2 flex items-center justify-center">
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center">
                                 {/* Chart */}
                                 <div className="w-[130px] h-[130px]">
                                     <ResponsiveContainer width="100%" height="100%">
@@ -344,7 +344,7 @@ export default function LiquidityPoolSection({
                         {/* ─── Pool Liquidity ─── */}
                         <div
                             className="row-span-2 bg-[#2a3646] rounded-lg p-4 shadow-inner border border-slate-700 text-center flex flex-col justify-start">
-                            <div className="text-xl uppercase tracking-wide text-slate-400 mb-4">
+                            <div className="text-sm uppercase tracking-wide text-slate-400 mb-4">
                                 Pool Liquidity
                             </div>
                             <div className="text-xl font-semibold text-green-400">

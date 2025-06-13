@@ -297,11 +297,11 @@ export default function AddLiquidityForm({
             </div>
 
             {wallet?.publicKey ? (
-                <div className="mt-10">
+                <div className="mt-auto mb-auto">
                     {/* ── Chart & Shares Grid ── */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div className="flex flex-wrap justify-between gap-6 mb-6">
                         <div
-                            className=" md:col-span-1 md:col-start-1 flex flex-col justify-center items-center bg-[#2f3e4e] p-5 rounded-xl shadow-inner border border-slate-700">
+                            className="flex flex-col justify-center items-center bg-[#2f3e4e] p-5 rounded-xl shadow-inner border border-slate-700">
 
                             <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
                                 Potential Pool Share
@@ -376,7 +376,7 @@ export default function AddLiquidityForm({
                                 OUTCOME SHARES TO RECEIVE
 
                                 {/* Tooltip icon container */}
-                                <div className="group cursor-pointer absolute top-0.5 right-[-21px]">
+                                <div className="group cursor-pointer absolute top-0.5 right-[-17.5px]">
                                     {/* Info SVG Icon */}
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
