@@ -29,7 +29,7 @@ export const usePurchaseSharesListener = (
                 for (const event of parsedEvents) {
                     const {name: eventName, data: eventData} = event;
                     if (eventName === "purchasedOutcomeSharesEvent") {
-                        handleNewPurchase({transaction: eventData, txSignature: logInfo.signature});          // ← your UI update
+                        handleNewPurchase({transaction: eventData, txSignature: logInfo.signature});
                     }
                 }
             },

@@ -97,9 +97,15 @@ export default function MarketTradeSection({
 
     const handleNewPurchaseBlockchainEvent = useCallback(
         async (event: { txSignature: string, transaction: any }) => {
+            // We are gonna get the blockchain transaction
+            const transaction = await connection.getTransaction(event.txSignature, {
+                commitment: 'confirmed',
+                maxSupportedTransactionVersion: 0,
+            })
+            const createdAt = transaction?.blockTime ? new Date(transaction.blockTime * 1000).toISOString() : new Date().toISOString();
+
             console.log('Transaction details:', event.transaction);
             const purchasedOutcome = event.transaction.wantedSharesPurchasedMint.toBase58() === market.yesMint.toBase58() ? "yes" : "no";
-            console.log(`New transaction event: Purchased ${Number(event.transaction.wantedSharesPurchased) / 10 ** 9}`, purchasedOutcome, `shares for $${Number(event.transaction.amount) / 10 ** 9}. Signature: `, event.txSignature, `Time: ${new Date().toISOString()}}`);
 
             // Add the new transaction to the transaction details list
             const newTransaction: TransactionDetails = {
@@ -109,7 +115,7 @@ export default function MarketTradeSection({
                 purchased_outcome: purchasedOutcome,
                 amount_purchased: Number(event.transaction.wantedSharesPurchased) / 10 ** 9, // Convert from decimals to shares
                 money_spent: Number(event.transaction.amount) / 10 ** 9, // Convert from lamports to USD
-                created_at: new Date().toISOString(), // Use current time for simplicity
+                created_at: createdAt, // Use current time for simplicity
                 yes_price: Number(event.transaction.yesPriceBeforePurchase) / 10 ** 9,
                 no_price: Number(event.transaction.noPriceBeforePurchase) / 10 ** 9,
             };
@@ -220,13 +226,13 @@ export default function MarketTradeSection({
                 lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
                 signature: _sig
             }, 'confirmed');
-            const purchasedAt = new Date().toISOString()
 
             // Parse the transaction logs to find the purchased shares event
             const blockchainConfirmation = await connection.getTransaction(_sig, {
                 commitment: 'confirmed',
                 maxSupportedTransactionVersion: 0,
             });
+            const purchasedAt = blockchainConfirmation?.blockTime ? new Date(blockchainConfirmation.blockTime * 1000).toISOString() : new Date().toISOString();
             const parsedEvents = [...parser.parseLogs(blockchainConfirmation?.meta?.logMessages || [])];
             const purchasedEvent = parsedEvents.find(event => event.name === "purchasedOutcomeSharesEvent");
             const transaction = purchasedEvent?.data;
