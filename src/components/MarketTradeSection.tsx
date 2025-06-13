@@ -99,7 +99,7 @@ export default function MarketTradeSection({
         async (event: { txSignature: string, transaction: any }) => {
             console.log('Transaction details:', event.transaction);
             const purchasedOutcome = event.transaction.wantedSharesPurchasedMint.toBase58() === market.yesMint.toBase58() ? "yes" : "no";
-            console.log(`New transaction event: Purchased ${Number(event.transaction.wantedSharesPurchased) / 10 ** 9}`, purchasedOutcome, "shares. Signature: ", event.txSignature);
+            console.log(`New transaction event: Purchased ${Number(event.transaction.wantedSharesPurchased) / 10 ** 9}`, purchasedOutcome, `shares for $${Number(event.transaction.amount) / 10 ** 9}. Signature: `, event.txSignature, `Time: ${new Date().toISOString()}}`);
 
             // Add the new transaction to the transaction details list
             const newTransaction: TransactionDetails = {
