@@ -47,7 +47,7 @@ export default function AddLiquidityForm({
     const {wallet, connection, program} = useAnchorProgram();
     const [liquidityAdded, setLiquidityAdded] = useState(false);
     const chartDataRef = useRef([]);
-    const justPurchased = useRef(false);
+    const dontUpdateChart = useRef(false);
     const [parser, _setParser] = useState(new EventParser(program.programId, program.coder))
     const MAX_AMOUNT = wallet?.publicKey ? userBalance : CONST_MAX_AMOUNT;
 
@@ -133,6 +133,9 @@ export default function AddLiquidityForm({
 
             tx.add(ix);
 
+            // Don't do any chart updates while the transaction is being processed
+            dontUpdateChart.current = true;
+
             // @ts-ignore
             const provider = program.provider as AnchorProvider;
             const _sig = await provider.sendAndConfirm(tx);
@@ -175,6 +178,7 @@ export default function AddLiquidityForm({
             const {error} = await supabase.from("liquidity_pool_history").upsert(
                 [{
                     tx_signature: _sig,
+                    tx_slot: blockchainConfirmation?.slot,
                     market_pubkey: marketKey,
                     user_pubkey: wallet?.publicKey,
                     added_liquidity: true,
@@ -184,7 +188,8 @@ export default function AddLiquidityForm({
                     received_outcome_shares: received_outcome_shares,
                     received_outcome: received_outcome,
                     lp_total_shares: transaction ? Number(transaction.poolTotalLiquidityShares) / 10 ** 9 : 0,
-                }]
+                }],
+                {onConflict: "tx_signature"}
             )
 
             if (error) {
@@ -192,14 +197,11 @@ export default function AddLiquidityForm({
             }
 
             toast.success("Liquidity added successfully!")
-
-            justPurchased.current = true;
             setReloadMarket((prev) => prev + 1);
             setReloadLiquidityPool((prev) => prev + 1);
             setLiquidityAdded(true);
             setTimeout(() => {
                 setLiquidityAdded(false);
-                justPurchased.current = false;
             }, 2500);
 
         } catch (error) {
@@ -207,6 +209,9 @@ export default function AddLiquidityForm({
             console.log(error);
             toast.error("Failed to add liquidity. Please try again.")
         } finally {
+            setTimeout(() => {
+                dontUpdateChart.current = false;
+            }, 2500);
             setSubmitting(false);
             setAmount(0);
             setLiquidityShares(0);
@@ -214,7 +219,7 @@ export default function AddLiquidityForm({
     }
 
     const chartData = useMemo(() => {
-        if (justPurchased.current) return chartDataRef.current;
+        if (dontUpdateChart.current) return chartDataRef.current;
 
         let total = poolAccount?.liquidityShares ? poolAccount?.liquidityShares.toNumber() / 10 ** 9 : 0;
         total += liquidityShares; // Add the liquidity shares to the total

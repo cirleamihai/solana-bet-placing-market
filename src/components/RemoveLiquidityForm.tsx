@@ -7,11 +7,12 @@ import {PublicKey, Transaction} from "@solana/web3.js";
 import {getRemoveLiquidityPotentialBenefits} from "@/blockchain/computeLiquidityBenefits";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
 import {USD_MINT} from "@/lib/constants";
-import {AnchorProvider, BN} from "@coral-xyz/anchor";
+import {AnchorProvider, BN, EventParser} from "@coral-xyz/anchor";
 import {TOKEN_PROGRAM_ID} from "@coral-xyz/anchor/dist/cjs/utils/token";
 import {toast} from "sonner";
 import {useAnchorProgram} from "@/lib/anchor";
 import {Frown} from "lucide-react";
+import {supabase} from "@/lib/supabase";
 
 type Props = {
     submitting: boolean;
@@ -42,8 +43,9 @@ export default function RemoveLiquidityForm({
     const [maxAmountReached, setMaxAmountReached] = useState(false);
     const [liquidityRemoved, setLiquidityRemoved] = useState(false);
     const {wallet, connection, program} = useAnchorProgram();
+    const [parser, _setParser] = useState(new EventParser(program.programId, program.coder))
     const chartDataRef = useRef([]);
-    const justPurchased = useRef(false);
+    const dontUpdateChart = useRef(false);
     // const MAX_AMOUNT = maxShares;
     const MAX_AMOUNT = userShares;
 
@@ -110,25 +112,86 @@ export default function RemoveLiquidityForm({
 
             tx.add(ix);
 
+            // Don't update the chart while processing the transaction
+            dontUpdateChart.current = true;
 
             // @ts-ignore
             const provider = program.provider as AnchorProvider;
             const _sig = await provider.sendAndConfirm(tx);
 
+            // Confirm the transaction
+            const latestBlockHash = await connection.getLatestBlockhash();
+            await connection.confirmTransaction({
+                blockhash: latestBlockHash.blockhash,
+                lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+                signature: _sig
+            }, 'confirmed');
+
+            // Parse the transaction logs to find the purchased shares event
+            const blockchainConfirmation = await connection.getTransaction(_sig, {
+                commitment: 'confirmed',
+                maxSupportedTransactionVersion: 0,
+            });
+            const purchasedAt = blockchainConfirmation?.blockTime ? new Date(blockchainConfirmation.blockTime * 1000).toISOString() : new Date().toISOString();
+            const parsedEvents = [...parser.parseLogs(blockchainConfirmation?.meta?.logMessages || [])];
+            const purchasedEvent = parsedEvents.find(event => event.name === "liquidityRemovedEvent");
+            if (!purchasedEvent) {
+                throw new Error("No liquidity removed event found in transaction logs. Try again.");
+            }
+
+            const transaction = purchasedEvent?.data;
+
+            let received_outcome_shares, received_outcome;
+            if (transaction) {
+                const receivedShares = Number(transaction.receivedLowestOutcomeTokens) / 10 ** 9;
+                if (market.yesMint.toBase58() === transaction.receivedLowestOutcomeMint.toBase58()){
+                    received_outcome_shares = receivedShares;
+                    received_outcome = "YES";
+                } else {
+                    received_outcome_shares = receivedShares;
+                    received_outcome = "NO";
+                }
+            } else {
+                received_outcome_shares = 0;
+                received_outcome = "";
+            }
+
+            const {error} = await supabase.from("liquidity_pool_history").upsert(
+                [{
+                    tx_signature: _sig,
+                    tx_slot: blockchainConfirmation?.slot,
+                    market_pubkey: marketKey,
+                    user_pubkey: wallet?.publicKey,
+                    added_liquidity: false,
+                    created_at: purchasedAt,
+                    lp_shares_used: transaction ? Number(transaction.burntLpShares) / 10 ** 9 : 0,
+                    usd_received: transaction ? Number(transaction.equivalentUsd) / 10 ** 9 : 0,
+                    received_outcome_shares: received_outcome_shares,
+                    received_outcome: received_outcome,
+                    lp_total_shares: transaction ? Number(transaction.poolRemainingLiquidityShares) / 10 ** 9 : 0,
+                }],
+                {onConflict: "tx_signature"}
+            )
+
+            if (error) {
+                throw new Error(error.message);
+            }
+
             toast.success("Liquidity removed successfully!")
-            justPurchased.current = true;
             setReloadMarket((prev) => prev + 1);
             setReloadLiquidityPool((prev) => prev + 1);
             setLiquidityRemoved(true);
             setTimeout(() => {
                 setLiquidityRemoved(false);
-                justPurchased.current = false;
             }, 2500);
         } catch (error) {
             // @ts-ignore
-            console.log(error.getLogs());
+            console.log(error);
             toast.error("Failed to remove liquidity. Please try again.")
         } finally {
+            setTimeout(() => {
+                dontUpdateChart.current = false; // Reset the flag after a short delay
+            }, 2500)
             setSubmitting(false);
             setSharesToRemove(0);
             setUsdToReceiveForLPShares(0);
@@ -157,7 +220,7 @@ export default function RemoveLiquidityForm({
     }
 
     const chartData = useMemo(() => {
-        if (justPurchased.current) return chartDataRef.current;
+        if (dontUpdateChart.current) return chartDataRef.current;
 
         let total = poolAccount?.liquidityShares ? poolAccount.liquidityShares.toNumber() / 10 ** 9 : 0;
         total -= sharesToRemove; // Adjust total by shares to remove
