@@ -119,10 +119,8 @@ export default function MarketDetails() {
             }
             data = data || [];
             const mergedTransaction: TransactionDetails[] = [...transactionDetails, ...data];
-            console.log("mergedTransaction", mergedTransaction, "Length: ");
             const uniqueTransactions = Array.from(new Map(mergedTransaction.map(obj => [obj.tx_signature, obj])).values())
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-            console.log("uniqueTransactions", uniqueTransactions);
             if (uniqueTransactions.length >= 0) {
                 setTransactionDetails(uniqueTransactions);
             }
