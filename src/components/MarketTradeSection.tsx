@@ -123,7 +123,17 @@ export default function MarketTradeSection({
                 yes_price: Number(event.transactionData.yesPriceBeforePurchase) / 10 ** 9,
                 no_price: Number(event.transactionData.noPriceBeforePurchase) / 10 ** 9,
             };
-            setTransactionDetails([newTransaction, ...transactionDetails]); // Keep only the latest 25 transactions
+            // We are going to sort the transaction to make sure we always have the latest transaction on top
+            const newTransactions = [newTransaction, ...transactionDetails].sort(
+                (a, b) => {
+                    const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+
+                    if (timeDiff !== 0) return timeDiff;
+
+                    // Fallback: sort by slot (descending)
+                    return b.tx_slot - a.tx_slot;
+                });
+            setTransactionDetails(newTransactions); // Keep only the latest 25 transactions
             setReloadMarket((prev: any) => prev + 1);
 
             // Set the remaining tokens for yes and no outcomes

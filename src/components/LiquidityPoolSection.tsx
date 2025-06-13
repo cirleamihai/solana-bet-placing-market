@@ -81,7 +81,7 @@ export default function LiquidityPoolSection({
                 console.error("Wallet not connected");
                 return;
             }
-            const { transactionSlot, createdAt, userKey } = await getTransactionDetails(connection, event);
+            const {transactionSlot, createdAt, userKey} = await getTransactionDetails(connection, event);
             if (!transactionSlot || !createdAt || !userKey) {
                 console.error("Failed to get transaction details. Tx: ", event.txSignature);
                 return;
@@ -116,16 +116,67 @@ export default function LiquidityPoolSection({
             }
             console.log(newTransaction);
             const newTransactions = [newTransaction, ...poolTransactions].sort(
-                (a, b) => b.tx_slot - a.tx_slot
-            );
+                (a, b) => {
+                    const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+
+                    if (timeDiff !== 0) return timeDiff;
+
+                    // Fallback: sort by slot (descending)
+                    return b.tx_slot - a.tx_slot;
+                });
+
             setPoolTransactions(newTransactions.slice(0, 25)); // Keep only the latest 25 transactions
             setReloadMarket((prev: any) => prev + 1);
 
         }, [])
+    const handleNewLiquidityRemovedAction = useCallback(
+        async (event: { transactionData: any, txSignature: string }) => {
+            if (!wallet || !wallet.publicKey) {
+                console.error("Wallet not connected");
+                return;
+            }
+            const {transactionSlot, createdAt, userKey} = await getTransactionDetails(connection, event);
+            if (!transactionSlot || !createdAt || !userKey) {
+                console.error("Failed to get transaction details. Tx: ", event.txSignature);
+                return;
+            }
+
+            let receivedOutcomeShares = Number(event.transactionData.receivedLowestOutcomeTokens) / 10 ** 9;
+            let receivedOutcome = event.transactionData.receivedLowestOutcomeMint.toBase58() === market.yesMint.toBase58() ? "yes" : "no";
+
+            const newTransaction: LiquidityPoolTransaction = {
+                tx_signature: event.txSignature,
+                tx_slot: transactionSlot,
+                market_pubkey: marketPubkey.toBase58(),
+                user_pubkey: userKey,
+                added_liquidity: false,
+                created_at: createdAt,
+                usd_used: 0,
+                lp_shares_used: Number(event.transactionData.burntLpShares) / 10 ** 9,
+                usd_received: Number(event.transactionData.equivalentUsd) / 10 ** 9,
+                lp_shares_received: 0,
+                received_outcome_shares: receivedOutcomeShares,
+                received_outcome: receivedOutcome,
+                lp_total_shares: Number(event.transactionData.poolRemainingLiquidityShares) / 10 ** 9,
+            }
+            console.log(newTransaction);
+            const newTransactions = [newTransaction, ...poolTransactions].sort(
+                (a, b) => {
+                    const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+
+                    if (timeDiff !== 0) return timeDiff;
+
+                    // Fallback: sort by slot (descending)
+                    return b.tx_slot - a.tx_slot;
+                });
+
+            setPoolTransactions(newTransactions.slice(0, 25)); // Keep only the latest 25 transactions
+            setReloadMarket((prev: any) => prev + 1);
+        }, [])
 
     useLiquidityPoolListener(
         handleNewLiquidityAddedAction,
-        handleNewLiquidityAddedAction,
+        handleNewLiquidityRemovedAction,
         marketPubkey,
         parser
     )
@@ -389,28 +440,28 @@ export default function LiquidityPoolSection({
                                             <span className="text-slate-300">
                                               {
                                                   transaction.added_liquidity ?
-                                                        `$${transaction.usd_used.toLocaleString("en-US", {
-                                                            maximumFractionDigits: 2,
-                                                            minimumFractionDigits: 2
-                                                        })} in the pool` :
-                                                        `${transaction.lp_shares_used.toLocaleString("en-US", {
-                                                            maximumFractionDigits: 2,
-                                                            minimumFractionDigits: 2
-                                                        })} LPs from the pool`
+                                                      `$${transaction.usd_used.toLocaleString("en-US", {
+                                                          maximumFractionDigits: 2,
+                                                          minimumFractionDigits: 2
+                                                      })} in the pool` :
+                                                      `${transaction.lp_shares_used.toLocaleString("en-US", {
+                                                          maximumFractionDigits: 2,
+                                                          minimumFractionDigits: 2
+                                                      })} LPs from the pool`
                                               }
                                             </span>
                                         </div>
                                         <span className="text-slate-400 font-bold">
                                           {
                                               transaction.added_liquidity ?
-                                                    `${transaction.lp_shares_received.toLocaleString("en-US", {
-                                                        maximumFractionDigits: 2,
-                                                        minimumFractionDigits: 2
-                                                    })} LP shares` :
-                                                    `$${transaction.usd_received.toLocaleString("en-US", {
-                                                        maximumFractionDigits: 2,
-                                                        minimumFractionDigits: 2
-                                                    })}`
+                                                  `${transaction.lp_shares_received.toLocaleString("en-US", {
+                                                      maximumFractionDigits: 2,
+                                                      minimumFractionDigits: 2
+                                                  })} LP shares` :
+                                                  `$${transaction.usd_received.toLocaleString("en-US", {
+                                                      maximumFractionDigits: 2,
+                                                      minimumFractionDigits: 2
+                                                  })}`
                                           }
                                         </span>
                                     </div>
