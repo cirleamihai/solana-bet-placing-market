@@ -867,7 +867,7 @@
             "type": "u64"
           },
           {
-            "name": "pool_total_liquidity",
+            "name": "pool_total_liquidity_shares",
             "type": "u64"
           },
           {
