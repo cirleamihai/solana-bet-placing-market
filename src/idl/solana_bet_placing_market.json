@@ -1093,6 +1093,18 @@
             "type": "u64"
           },
           {
+            "name": "wanted_shares_purchased_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "yes_price_before_purchase",
+            "type": "u64"
+          },
+          {
+            "name": "no_price_before_purchase",
+            "type": "u64"
+          },
+          {
             "name": "pool_remaining_yes_tokens",
             "type": "u64"
           },

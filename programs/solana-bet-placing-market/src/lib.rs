@@ -160,7 +160,11 @@ pub mod solana_bet_placing_market {
     }
 
     pub fn remove_liquidity(ctx: Context<PoolLiquidity>, shares: u64) -> Result<()> {
-        msg!("Shares to remove: {}. User remaining balance: {}", shares, ctx.accounts.user_lp_share_account.amount);
+        msg!(
+            "Shares to remove: {}. User remaining balance: {}",
+            shares,
+            ctx.accounts.user_lp_share_account.amount
+        );
         require!(
             shares <= ctx.accounts.user_lp_share_account.amount,
             MarketError::InsufficientFunds
@@ -223,7 +227,8 @@ pub mod solana_bet_placing_market {
             let highest_price = (highest_liquidity as u128 * SCALE / total_price) as u64;
 
             let liquidity_shares_value = ((ctx.accounts.pool.liquidity_value as u128
-                * shares as u128) / highest_liquidity as u128) as u64;
+                * shares as u128)
+                / highest_liquidity as u128) as u64;
 
             // We are transferring OUT from the vault, the shares value
             transfer_outcome(
@@ -467,6 +472,13 @@ pub mod solana_bet_placing_market {
         let other_mint;
         let wanted_from_liquidity;
 
+        let total_shares =
+            ctx.accounts.pool.yes_liquidity as u128 + ctx.accounts.pool.no_liquidity as u128;
+        let yes_token_price =
+            ((ctx.accounts.pool.no_liquidity as u128 * SCALE) / total_shares) as u64;
+        let no_token_price =
+            ((ctx.accounts.pool.yes_liquidity as u128 * SCALE) / total_shares) as u64;
+
         // Now we figure out whether the user wants
         // a YES or a NO token
         if purchased_outcome_mint_pubkey == ctx.accounts.yes_mint.key() {
@@ -566,6 +578,9 @@ pub mod solana_bet_placing_market {
             user: ctx.accounts.user.key(),
             amount: usd_amount,
             wanted_shares_purchased: usd_amount + wanted_from_liquidity,
+            wanted_shares_purchased_mint: purchased_outcome_mint_pubkey,
+            yes_price_before_purchase: yes_token_price,
+            no_price_before_purchase: no_token_price,
             pool_remaining_yes_tokens: ctx.accounts.pool.yes_liquidity,
             pool_remaining_no_tokens: ctx.accounts.pool.no_liquidity,
         });
@@ -1036,6 +1051,9 @@ pub struct PurchasedOutcomeSharesEvent {
     pub user: Pubkey,
     pub amount: u64,
     pub wanted_shares_purchased: u64,
+    pub wanted_shares_purchased_mint: Pubkey,
+    pub yes_price_before_purchase: u64,
+    pub no_price_before_purchase: u64,
     pub pool_remaining_yes_tokens: u64,
     pub pool_remaining_no_tokens: u64,
 }
