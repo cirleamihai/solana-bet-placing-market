@@ -919,6 +919,10 @@
             "type": "u64"
           },
           {
+            "name": "pool_remaining_liquidity_shares",
+            "type": "u64"
+          },
+          {
             "name": "equivalent_usd",
             "type": "u64"
           },
