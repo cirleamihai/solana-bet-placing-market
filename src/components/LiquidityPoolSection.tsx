@@ -1,4 +1,4 @@
-import {Dispatch, SetStateAction, useEffect, useMemo, useState} from "react";
+import React, {Dispatch, SetStateAction, useEffect, useMemo, useState} from "react";
 import {PublicKey} from "@solana/web3.js";
 import {useAnchorProgram} from "@/lib/anchor";
 import {
@@ -223,25 +223,67 @@ export default function LiquidityPoolSection({
 
                 {/* ─── Liquidity Pool Actions ─── */}
                 <div className="rounded-xl bg-[#1f2937] text-white p-6 shadow-md">
-                    <h3 className="text-lg font-semibold mb-4">Liquidity Pool Actions</h3>
-                    <ul className="space-y-2 text-sm">
-                        {/* Row 1: Last Action */}
-                        <li className="flex items-center border-b border-slate-700 pb-2">
-                            <span className="text-slate-400 w-40">Last Action</span>
-                            <div className="ml-auto text-blue-400 font-semibold uppercase">{prevAction}</div>
-                        </li>
+                    <div className="flex justify-between">
+                        <h3 className="text-xl font-semibold mb-4">Liquidity History</h3>
+                        <h3 className="text-sm font-semibold mt-2 mr-3">Received</h3>
+                    </div>
 
-                        {/* Row 2: Current Mode */}
-                        <li className="flex items-center border-b border-slate-700 pb-2">
-                            <span className="text-slate-400 w-40">Current Mode</span>
-                            <div className="ml-auto text-yellow-400 font-semibold uppercase">{action}</div>
-                        </li>
+                    <ul className="custom-scroll space-y-1 overflow-y-auto pr-1">
+                        <AnimatePresence initial={false}>
+                            {[1, 2, 3].slice(0, 25).map((trade, _i) => (
+                                <motion.li
+                                    key={trade} // ✅ Use unique key
+                                    initial={{opacity: 0, y: 10}}
+                                    animate={{opacity: 1, y: 0}}
+                                    exit={{opacity: 0, y: -10}}
+                                    transition={{duration: 0.3, ease: "easeOut"}}
+                                    className="flex items-center border-b cursor-pointer border-gray-700 px-2 py-[6px] rounded-md hover:bg-[#273447] transition duration-150 text-sm"
+                                >
+                                    {/* Timestamp */}
+                                    <div
+                                        className="text-xs text-blue-400 italic min-w-[100px] text-left pr-2 leading-none">
+                                        {new Date().toLocaleString("en-US", {
+                                            month: "short",
+                                            day: "numeric",
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                            second: "2-digit",
+                                            hour12: false,
+                                        })}
+                                    </div>
 
-                        {/* Row 3: LP Shares */}
-                        <li className="flex items-center">
-                            <span className="text-slate-400 w-40">Your LP Shares</span>
-                            <div className="ml-auto text-green-300 font-semibold">{userShares.toFixed(2)}</div>
-                        </li>
+                                    {/* Divider */}
+                                    <div
+                                        className="ml-auto h-[20px] w-[1px] bg-slate-600 mx-2 opacity-50 rounded"></div>
+
+                                    {/* Details */}
+                                    <div className="flex justify-between items-center flex-1 font-mono">
+                                        <div className="flex gap-2">
+                                            <span
+                                                className="text-slate-300"
+                                                title={wallet?.publicKey.toBase58()}
+                                            >
+                                              User QLa13...7d3f
+                                            </span>
+
+                                            <div
+                                                className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
+                                            <span className="min-w-[53px] inline-block font-mono text-slate-300 text-center">
+                                                    REMOVED
+                                            </span>
+                                            <div
+                                                className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
+                                            <span className="text-slate-300">
+                                              ${(23001).toLocaleString("en-US")} in the LP
+                                            </span>
+                                        </div>
+                                        <span className="text-slate-400 font-bold">
+                                          233.12 LP Shares
+                                        </span>
+                                    </div>
+                                </motion.li>
+                            ))}
+                        </AnimatePresence>
                     </ul>
                 </div>
 

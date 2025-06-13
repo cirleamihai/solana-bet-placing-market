@@ -486,7 +486,7 @@ export default function MarketTradeSection({
             {/* ── History / Order Book ─────────────────── */}
             <div className="flex flex-col gap-2">
                 <div className="rounded-xl bg-[#1f2937] text-white p-6 shadow-md">
-                    <h3 className="text-lg font-semibold mb-4">Recent Trades</h3>
+                    <h3 className="text-xl font-semibold mb-4">Recent Trades</h3>
                     {transactionDetails.length > 0 ? (
                         <ul className="custom-scroll space-y-1 h-[160px] overflow-y-auto pr-1">
                             <AnimatePresence initial={false}>
@@ -521,7 +521,7 @@ export default function MarketTradeSection({
                                             <div className="flex gap-2">
                                             <span
                                                 className="text-slate-300"
-                                                title={wallet?.publicKey.toBase58()}
+                                                title={trade.user_pubkey}
                                             >
                                               User {trade.user_pubkey.slice(0, 5)}...{trade.user_pubkey.slice(-4)}
                                             </span>
