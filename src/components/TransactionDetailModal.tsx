@@ -14,24 +14,37 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
     // pie data depends on action type
     const chartData = useMemo(() => {
         let sharesPercentage;
+        let remainingPercentage;
 
         if (transaction.added_liquidity) {
             sharesPercentage = transaction.lp_shares_received / transaction.lp_total_shares * 100;
+            remainingPercentage = 100 - sharesPercentage;
             sharesPercentage = sharesPercentage !== 100 ? sharesPercentage.toLocaleString("en-US", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
             }) : "100%";
+            remainingPercentage = remainingPercentage !== 0 ? remainingPercentage.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }) : "0%";
         } else {
             sharesPercentage = transaction.lp_shares_used / (transaction.lp_total_shares + transaction.lp_shares_used) * 100;
+            remainingPercentage = 100 - sharesPercentage;
             sharesPercentage = sharesPercentage !== 100 ? sharesPercentage.toLocaleString("en-US", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
             }) : "100%";
+            remainingPercentage = remainingPercentage !== 0 ? remainingPercentage.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }) : "0%";
         }
-        const totalLiquidityShares = transaction.added_liquidity ? transaction.lp_total_shares : transaction.lp_total_shares + transaction.lp_shares_used
+        const totalLiquidityShares = transaction.added_liquidity ?
+            transaction.lp_total_shares - transaction.lp_shares_received :
+            transaction.lp_total_shares;
         const liquiditySharesValue = transaction.added_liquidity ? transaction.lp_shares_received : transaction.lp_shares_used;
         return [
-            {name: "Total Liquidity Shares: 100%", value: totalLiquidityShares, color: "#693992"},
+            {name: `Remaining LP Shares: ${remainingPercentage}%`, value: totalLiquidityShares, color: "#693992"},
             {name: `Transaction Shares: ${sharesPercentage}%`, value: liquiditySharesValue, color: "#00ffa3"},
         ];
     }, [transaction]);
@@ -67,7 +80,8 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
 
                     <div className="rounded-lg border border-slate-700 bg-[#2a3646] p-4 shadow-inner w-full mb-5">
                         {/* Title — keep outside flex */}
-                        <div className="mb-6 text-center text-sm font-semibold uppercase tracking-wider text-slate-400 w-full">
+                        <div
+                            className="mb-6 text-center text-sm font-semibold uppercase tracking-wider text-slate-400 w-full">
                             Transaction impact over the liquidity pool
                         </div>
                         {/* pie + legend  */}
@@ -96,11 +110,11 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
                             <ul className="space-y-2">
                                 {chartData.map(d => (
                                     <li key={d.name} className="flex items-center text-sm text-slate-300">
-                          <span
-                              className="mr-2 inline-block h-3 w-3 rounded-full"
-                              style={{backgroundColor: d.color}}
-                          />
-                                        {d.name}
+                                          <span
+                                              className="mr-2 inline-block h-3 w-3 rounded-full"
+                                              style={{backgroundColor: d.color}}
+                                          />
+                                         {d.name}
                                     </li>
                                 ))}
                             </ul>
@@ -128,19 +142,31 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
                         <StatBox
                             title="Spent"
                             className="min-h-[100px]"
+                            textColor="text-red-400"
                             value={
                                 transaction.added_liquidity
-                                    ? `$${transaction.usd_used.toLocaleString()}`
-                                    : `${transaction.lp_shares_used.toLocaleString()} LP Shares`
+                                    ? `-$${transaction.usd_used.toLocaleString()}`
+                                    : (
+                                        <div className="flex flex-col items-center">
+                                            <span>-{transaction.lp_shares_used.toLocaleString()}</span>
+                                            <span>LP Shares</span>
+                                        </div>
+                                    )
                             }
                         />
                         <StatBox
                             title="Earned"
                             className="min-h-[100px]"
+                            textColor="text-green-400"
                             value={
                                 transaction.added_liquidity
-                                    ? `${transaction.lp_shares_received.toLocaleString()} LP Shares`
-                                    : `$${transaction.usd_received.toLocaleString()} USD-UBB`
+                                    ? (
+                                        <div className="flex flex-col items-center">
+                                            <span>+{transaction.lp_shares_received.toLocaleString()}</span>
+                                            <span>LP Shares</span>
+                                        </div>
+                                    )
+                                    : `+$${transaction.usd_received.toLocaleString()}`
                             }
                         />
                         <StatBox
@@ -164,7 +190,7 @@ function StatBox({
                      textColor = "text-blue-200",
                  }: {
     title: string;
-    value: string;
+    value: any;
     className?: string;
     textColor?: string;
 }) {
