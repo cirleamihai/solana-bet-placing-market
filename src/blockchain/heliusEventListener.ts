@@ -3,6 +3,7 @@ import React, {useEffect} from "react";
 import {EventParser, Program} from "@coral-xyz/anchor";
 
 export const getWSConnection = (cluster: string): Connection => {
+    // @ts-ignore
     const endpoint = `https://${cluster}.helius-rpc.com/?api-key=${import.meta.env.VITE_HELIUS_API_KEY}`;
     return new Connection(endpoint, 'confirmed');
 }
@@ -23,6 +24,7 @@ export const listenToPurchaseSharesEventHelius = (
         const logSubscription = connection.onLogs(
             programId,
             async (logInfo) => {
+                console.log('New logs received:', logInfo);
                 const parsedEvents = [...parser.parseLogs(logInfo.logs)];
                 for (const event of parsedEvents) {
                     const {name: eventName, data: eventData} = event;

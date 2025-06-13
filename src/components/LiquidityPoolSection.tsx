@@ -106,7 +106,6 @@ export default function LiquidityPoolSection({
             Number(poolAccount.noLiquidity) / 10 ** 9,
             userShares
         )
-        console.log(liquidityBenefits)
         setUserSharesValue(liquidityBenefits.moneyToReceive);
     }, [reloadMarket, userShares]);
 
