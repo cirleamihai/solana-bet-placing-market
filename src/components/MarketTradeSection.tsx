@@ -276,8 +276,11 @@ export default function MarketTradeSection({
             }
 
             // Set the remaining tokens for yes and no outcomes
-            setYesRemainingTokens(Number(transaction.poolRemainingYesTokens));
-            setNoRemainingTokens(Number(transaction.poolRemainingNoTokens));
+            if (blockchainConfirmation?.slot ?? 0 > lastEventSlot.current) {
+                lastEventSlot.current = blockchainConfirmation?.slot ?? 0;
+                setYesRemainingTokens(Number(transaction.poolRemainingYesTokens));
+                setNoRemainingTokens(Number(transaction.poolRemainingNoTokens));
+            }
 
             toast.success("Successfully purchased shares!");
             setPurchased(true);
