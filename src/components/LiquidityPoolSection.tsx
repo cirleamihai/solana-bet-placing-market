@@ -443,11 +443,11 @@ export default function LiquidityPoolSection({
                                                       `$${transaction.usd_used.toLocaleString("en-US", {
                                                           maximumFractionDigits: 2,
                                                           minimumFractionDigits: 2
-                                                      })} in the pool` :
+                                                      })} into the pool` :
                                                       `${transaction.lp_shares_used.toLocaleString("en-US", {
                                                           maximumFractionDigits: 2,
                                                           minimumFractionDigits: 2
-                                                      })} LPs from the pool`
+                                                      })} Liquidity Shares from the pool`
                                               }
                                             </span>
                                         </div>
