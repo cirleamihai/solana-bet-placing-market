@@ -65,9 +65,9 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
                         Transaction Detail
                     </h3>
 
-                    <div className="rounded-lg border border-slate-700 bg-[#2a3646] p-4 shadow-inner flex flex-col max-h-[180px] mb-5 ">
-                        <div
-                            className="mb-6 text-center text-sm font-semibold uppercase tracking-wider text-slate-400">
+                    <div className="rounded-lg border border-slate-700 bg-[#2a3646] p-4 shadow-inner w-full mb-5">
+                        {/* Title — keep outside flex */}
+                        <div className="mb-6 text-center text-sm font-semibold uppercase tracking-wider text-slate-400 w-full">
                             Transaction impact over the liquidity pool
                         </div>
                         {/* pie + legend  */}

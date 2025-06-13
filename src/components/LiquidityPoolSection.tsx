@@ -460,7 +460,7 @@ export default function LiquidityPoolSection({
                                                       `${transaction.lp_shares_used.toLocaleString("en-US", {
                                                           maximumFractionDigits: 2,
                                                           minimumFractionDigits: 2
-                                                      })} Liquidity Shares from the pool`
+                                                      })} LP Shares from the pool`
                                               }
                                             </span>
                                             </div>
