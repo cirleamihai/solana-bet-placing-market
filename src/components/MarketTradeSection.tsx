@@ -25,9 +25,10 @@ export interface TransactionDetails {
     purchased_outcome: "yes" | "no";
     amount_purchased: number; // in shares
     money_spent: number; // in USD
-    created_at: string; // ISO date string
     yes_price: number; // Price of Yes outcome
     no_price: number; // Price of No outcome
+    created_at: string; // ISO date string
+    tx_slot: number;
 }
 
 interface TradeInfo {
@@ -40,6 +41,7 @@ interface TradeInfo {
     setTransactionDetails: Dispatch<React.SetStateAction<TransactionDetails[]>>,
     setYesPrice: (price: number) => void,
     setNoPrice: (price: number) => void
+    lastEventSlot: React.RefObject<number>,
 }
 
 export default function MarketTradeSection({
@@ -51,7 +53,8 @@ export default function MarketTradeSection({
                                                transactionDetails,
                                                setTransactionDetails,
                                                setYesPrice,
-                                               setNoPrice
+                                               setNoPrice,
+                                               lastEventSlot
                                            }: TradeInfo) {
     const {wallet, program, connection} = useAnchorProgram(); // Assuming you have a hook to get the wallet context
     const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">("yes");
@@ -102,6 +105,12 @@ export default function MarketTradeSection({
                 commitment: 'confirmed',
                 maxSupportedTransactionVersion: 0,
             })
+            if (!transaction) {
+                console.error("Transaction not found:", event.txSignature);
+                return;
+            }
+
+            const transactionSlot = transaction.slot;
             const createdAt = transaction?.blockTime ? new Date(transaction.blockTime * 1000).toISOString() : new Date().toISOString();
 
             console.log('Transaction details:', event.transaction);
@@ -116,6 +125,7 @@ export default function MarketTradeSection({
                 amount_purchased: Number(event.transaction.wantedSharesPurchased) / 10 ** 9, // Convert from decimals to shares
                 money_spent: Number(event.transaction.amount) / 10 ** 9, // Convert from lamports to USD
                 created_at: createdAt, // Use current time for simplicity
+                tx_slot: transactionSlot,
                 yes_price: Number(event.transaction.yesPriceBeforePurchase) / 10 ** 9,
                 no_price: Number(event.transaction.noPriceBeforePurchase) / 10 ** 9,
             };
@@ -123,8 +133,11 @@ export default function MarketTradeSection({
             setReloadMarket((prev: any) => prev + 1);
 
             // Set the remaining tokens for yes and no outcomes
-            setYesRemainingTokens(Number(event.transaction.poolRemainingYesTokens));
-            setNoRemainingTokens(Number(event.transaction.poolRemainingNoTokens));
+            if (transactionSlot > lastEventSlot.current) {
+                lastEventSlot.current = transactionSlot;
+                setYesRemainingTokens(Number(event.transaction.poolRemainingYesTokens));
+                setNoRemainingTokens(Number(event.transaction.poolRemainingNoTokens));
+            }
 
         }, [setReloadMarket]);
 
@@ -249,7 +262,8 @@ export default function MarketTradeSection({
                         money_spent: Number(transaction.amount) / 10 ** 9,
                         yes_price: yesPrice,
                         no_price: noPrice,
-                        created_at: purchasedAt
+                        created_at: purchasedAt,
+                        tx_slot: blockchainConfirmation?.slot
                     }
                 ],
                 {onConflict: "tx_signature",}

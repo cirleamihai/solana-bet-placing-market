@@ -32,6 +32,7 @@ export default function MarketDetails() {
     const [noPrice, setNoPrice] = useState<number>(-1);
     const [transactionDetails, setTransactionDetails] = useState<TransactionDetails[]>([]);
     const [reloadLiquidityPool, setReloadLiquidityPool] = useState(0);
+    const lastEventSlot = useRef<number>(0);
     const dataExists = useRef(false);
 
     // Loading market question from db
@@ -120,7 +121,14 @@ export default function MarketDetails() {
             data = data || [];
             const mergedTransaction: TransactionDetails[] = [...transactionDetails, ...data];
             const uniqueTransactions = Array.from(new Map(mergedTransaction.map(obj => [obj.tx_signature, obj])).values())
-                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                .sort((a, b) => {
+                    const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+
+                    if (timeDiff !== 0) return timeDiff;
+
+                    // Fallback: sort by slot (descending)
+                    return b.tx_slot - a.tx_slot;
+                });
             if (uniqueTransactions.length >= 0) {
                 setTransactionDetails(uniqueTransactions);
             }
@@ -208,6 +216,7 @@ export default function MarketDetails() {
                     setYesPrice={setYesPrice}
                     setNoPrice={setNoPrice}
                     setTransactionDetails={setTransactionDetails}
+                    lastEventSlot={lastEventSlot}
                 />
             </div>
 
