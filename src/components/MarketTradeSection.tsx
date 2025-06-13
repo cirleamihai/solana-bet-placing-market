@@ -123,17 +123,17 @@ export default function MarketTradeSection({
                 yes_price: Number(event.transactionData.yesPriceBeforePurchase) / 10 ** 9,
                 no_price: Number(event.transactionData.noPriceBeforePurchase) / 10 ** 9,
             };
-            // We are going to sort the transaction to make sure we always have the latest transaction on top
-            const newTransactions = [newTransaction, ...transactionDetails].sort(
-                (a, b) => {
-                    const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            setTransactionDetails((prev) => {
+                return [newTransaction, ...prev].sort(
+                    (a, b) => {
+                        const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 
-                    if (timeDiff !== 0) return timeDiff;
+                        if (timeDiff !== 0) return timeDiff;
 
-                    // Fallback: sort by slot (descending)
-                    return b.tx_slot - a.tx_slot;
-                });
-            setTransactionDetails(newTransactions); // Keep only the latest 25 transactions
+                        // Fallback: sort by slot (descending)
+                        return b.tx_slot - a.tx_slot;
+                    });
+            }); // Keep only the latest 25 transactions
             setReloadMarket((prev: any) => prev + 1);
 
             // Set the remaining tokens for yes and no outcomes
@@ -281,7 +281,6 @@ export default function MarketTradeSection({
 
             // Set the remaining tokens for yes and no outcomes
             if ((blockchainConfirmation?.slot ?? 0) > lastEventSlot.current) {
-                console.log("Tx Slot: ", blockchainConfirmation?.slot ?? 0, "Last Event Slot: ", lastEventSlot.current);
                 lastEventSlot.current = blockchainConfirmation?.slot ?? 0;
                 setYesRemainingTokens(Number(transaction.poolRemainingYesTokens));
                 setNoRemainingTokens(Number(transaction.poolRemainingNoTokens));

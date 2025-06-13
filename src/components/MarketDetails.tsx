@@ -120,19 +120,16 @@ export default function MarketDetails() {
                 return
             }
             data = data || [];
-            const mergedTransaction: TransactionDetails[] = [...transactionDetails, ...data];
-            const uniqueTransactions = Array.from(new Map(mergedTransaction.map(obj => [obj.tx_signature, obj])).values())
-                .sort((a, b) => {
+            setTransactionDetails(prev => {
+                const mergedTransaction: TransactionDetails[] = [...prev, ...data];
+
+                return Array.from(
+                    new Map(mergedTransaction.map(obj => [obj.tx_signature, obj])).values()
+                ).sort((a, b) => {
                     const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-
-                    if (timeDiff !== 0) return timeDiff;
-
-                    // Fallback: sort by slot (descending)
-                    return b.tx_slot - a.tx_slot;
+                    return timeDiff !== 0 ? timeDiff : b.tx_slot - a.tx_slot;
                 });
-            if (uniqueTransactions.length > 0) {
-                setTransactionDetails(uniqueTransactions);
-            }
+            });
         }
         fetchDbMarketData();
     }, [reloadMarket]);

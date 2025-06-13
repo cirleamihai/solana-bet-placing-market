@@ -32,7 +32,7 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
         const liquiditySharesValue = transaction.added_liquidity ? transaction.lp_shares_received : transaction.lp_shares_used;
         return [
             {name: "Total Liquidity Shares: 100%", value: totalLiquidityShares, color: "#693992"},
-            {name: `Your Shares Value: ${sharesPercentage}%`, value: liquiditySharesValue, color: "#00ffa3"},
+            {name: `Transaction Shares: ${sharesPercentage}%`, value: liquiditySharesValue, color: "#00ffa3"},
         ];
     }, [transaction]);
 
@@ -65,40 +65,46 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
                         Transaction Detail
                     </h3>
 
-                    {/* pie + legend  */}
-                    <div className="mx-auto mb-6 flex items-center justify-center gap-6">
-                        <div className="h-[140px] w-[140px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        dataKey="value"
-                                        data={chartData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius="50%"
-                                        outerRadius="80%"
-                                        stroke="none"
-                                    >
-                                        {chartData.map((d, i) => (
-                                            <Cell key={`slice-${i}`} fill={d.color}/>
-                                        ))}
-                                    </Pie>
-                                    <Tooltip formatter={(v: any) => v.toLocaleString()}/>
-                                </PieChart>
-                            </ResponsiveContainer>
+                    <div className="rounded-lg border border-slate-700 bg-[#2a3646] p-4 shadow-inner flex flex-col max-h-[180px] mb-5 ">
+                        <div
+                            className="mb-6 text-center text-sm font-semibold uppercase tracking-wider text-slate-400">
+                            Transaction impact over the liquidity pool
                         </div>
+                        {/* pie + legend  */}
+                        <div className="mx-auto -mt-5 flex items-center justify-center gap-6 w-full">
+                            <div className="h-[140px] w-[140px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            dataKey="value"
+                                            data={chartData}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius="50%"
+                                            outerRadius="80%"
+                                            stroke="none"
+                                        >
+                                            {chartData.map((d, i) => (
+                                                <Cell key={`slice-${i}`} fill={d.color}/>
+                                            ))}
+                                        </Pie>
+                                        <Tooltip formatter={(v: any) => v.toLocaleString()}/>
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
 
-                        <ul className="space-y-2">
-                            {chartData.map(d => (
-                                <li key={d.name} className="flex items-center text-sm text-slate-300">
-                  <span
-                      className="mr-2 inline-block h-3 w-3 rounded-full"
-                      style={{backgroundColor: d.color}}
-                  />
-                                    {d.name}
-                                </li>
-                            ))}
-                        </ul>
+                            <ul className="space-y-2">
+                                {chartData.map(d => (
+                                    <li key={d.name} className="flex items-center text-sm text-slate-300">
+                          <span
+                              className="mr-2 inline-block h-3 w-3 rounded-full"
+                              style={{backgroundColor: d.color}}
+                          />
+                                        {d.name}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     </div>
 
                     {/* stats grid  */}
@@ -107,7 +113,7 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
                                  value={transaction.added_liquidity ? "ADDED LIQUIDITY" : "REMOVED LIQUIDITY"}/>
                         <StatBox
                             title="Transaction Time"
-                            className="text-md"
+                            className="text-md min-h-[100px]"
                             value={new Date(transaction.created_at).toLocaleString("en-US", {
                                 year: "numeric",
                                 month: "short",
@@ -120,25 +126,28 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
                             })}
                         />
                         <StatBox
-                            title="LP Δ"
+                            title="Spent"
+                            className="min-h-[100px]"
                             value={
                                 transaction.added_liquidity
-                                    ? `+${transaction.lp_shares_received.toLocaleString()}`
-                                    : `-${transaction.lp_shares_used.toLocaleString()}`
+                                    ? `$${transaction.usd_used.toLocaleString()}`
+                                    : `${transaction.lp_shares_used.toLocaleString()} LP Shares`
                             }
                         />
                         <StatBox
-                            title="USD Δ"
+                            title="Earned"
+                            className="min-h-[100px]"
                             value={
                                 transaction.added_liquidity
-                                    ? `-$${transaction.usd_used.toLocaleString()}`
-                                    : `+$${transaction.usd_received.toLocaleString()}`
+                                    ? `${transaction.lp_shares_received.toLocaleString()} LP Shares`
+                                    : `$${transaction.usd_received.toLocaleString()}`
                             }
                         />
                         <StatBox
-                            title="Outcome Shares"
+                            title="Received Outcome Shares"
                             value={`${transaction.received_outcome_shares.toLocaleString()} ${transaction.received_outcome.toUpperCase()}`}
                             className="col-span-2"
+                            textColor={transaction.received_outcome.toLocaleLowerCase().includes("Yes") ? "text-green-400" : "text-red-400"}
                         />
                     </div>
                 </motion.div>

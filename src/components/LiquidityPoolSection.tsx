@@ -117,21 +117,24 @@ export default function LiquidityPoolSection({
                 received_outcome: receivedOutcome,
                 lp_total_shares: Number(event.transactionData.poolTotalLiquidityShares) / 10 ** 9,
             }
-            console.log(newTransaction);
-            const newTransactions = [newTransaction, ...poolTransactions].sort(
-                (a, b) => {
-                    const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 
-                    if (timeDiff !== 0) return timeDiff;
+            // noinspection DuplicatedCode
+            setPoolTransactions(prev => {
+                const newTransactions = [newTransaction, ...prev].sort(
+                    (a, b) => {
+                        const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 
-                    // Fallback: sort by slot (descending)
-                    return b.tx_slot - a.tx_slot;
-                });
+                        if (timeDiff !== 0) return timeDiff;
 
-            setPoolTransactions(newTransactions.slice(0, 25)); // Keep only the latest 25 transactions
+                        // Fallback: sort by slot (descending)
+                        return b.tx_slot - a.tx_slot;
+                    });
+                return newTransactions.slice(0, 25);
+            });
             setReloadMarket((prev: any) => prev + 1);
 
         }, [])
+
     const handleNewLiquidityRemovedAction = useCallback(
         async (event: { transactionData: any, txSignature: string }) => {
             if (!wallet || !wallet.publicKey) {
@@ -162,18 +165,18 @@ export default function LiquidityPoolSection({
                 received_outcome: receivedOutcome,
                 lp_total_shares: Number(event.transactionData.poolRemainingLiquidityShares) / 10 ** 9,
             }
-            console.log(newTransaction);
-            const newTransactions = [newTransaction, ...poolTransactions].sort(
-                (a, b) => {
-                    const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            setPoolTransactions(prev => {
+                const newTransactions = [newTransaction, ...prev].sort(
+                    (a, b) => {
+                        const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 
-                    if (timeDiff !== 0) return timeDiff;
+                        if (timeDiff !== 0) return timeDiff;
 
-                    // Fallback: sort by slot (descending)
-                    return b.tx_slot - a.tx_slot;
-                });
-
-            setPoolTransactions(newTransactions.slice(0, 25)); // Keep only the latest 25 transactions
+                        // Fallback: sort by slot (descending)
+                        return b.tx_slot - a.tx_slot;
+                    });
+                return newTransactions.slice(0, 25);
+            });
             setReloadMarket((prev: any) => prev + 1);
         }, [])
 
@@ -200,23 +203,21 @@ export default function LiquidityPoolSection({
             }
 
             data = data || [];
-            const mergedTransactions: LiquidityPoolTransaction[] = [...poolTransactions, ...data];
-            const uniqueTransactions = Array.from(new Map(mergedTransactions.map(tx => [tx.tx_signature, tx])).values())
-                .sort((a, b) => {
+            setPoolTransactions(prev => {
+                const mergedTransactions: LiquidityPoolTransaction[] = [...prev, ...data];
+
+                return Array.from(
+                    new Map(mergedTransactions.map(tx => [tx.tx_signature, tx])).values()
+                ).sort((a, b) => {
                     const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-
-                    if (timeDiff !== 0) return timeDiff;
-
-                    // Fallback: sort by slot (descending)
-                    return b.tx_slot - a.tx_slot;
+                    return timeDiff !== 0 ? timeDiff : b.tx_slot - a.tx_slot;
                 });
-            if (uniqueTransactions.length > 0) {
-                setPoolTransactions(uniqueTransactions);
-            }
+                
+            });
         }
 
         fetchDbMarketData();
-    }, []);
+    }, [reloadMarket]);
 
     useEffect(() => {
         (async () => {
