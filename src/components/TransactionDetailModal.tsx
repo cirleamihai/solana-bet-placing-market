@@ -27,11 +27,11 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
         sharesPercentage = sharesPercentage !== 100 ? sharesPercentage > 0.01 ? sharesPercentage.toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
-        }) : "< 0.01" : "100%";
+        }) : "< 0.01" : "100";
         remainingPercentage = remainingPercentage !== 0 ? remainingPercentage < 99.99 ? remainingPercentage.toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
-        }) : "> 99.99" : "0%";
+        }) : "> 99.99" : "0";
 
         const totalLiquidityShares = transaction.added_liquidity ?
             transaction.lp_total_shares - transaction.lp_shares_received :
