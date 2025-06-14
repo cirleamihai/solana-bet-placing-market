@@ -19,33 +19,27 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
         if (transaction.added_liquidity) {
             sharesPercentage = transaction.lp_shares_received / transaction.lp_total_shares * 100;
             remainingPercentage = 100 - sharesPercentage;
-            sharesPercentage = sharesPercentage !== 100 ? sharesPercentage.toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            }) : "100%";
-            remainingPercentage = remainingPercentage !== 0 ? remainingPercentage.toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            }) : "0%";
         } else {
             sharesPercentage = transaction.lp_shares_used / (transaction.lp_total_shares + transaction.lp_shares_used) * 100;
             remainingPercentage = 100 - sharesPercentage;
-            sharesPercentage = sharesPercentage !== 100 ? sharesPercentage.toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            }) : "100%";
-            remainingPercentage = remainingPercentage !== 0 ? remainingPercentage.toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            }) : "0%";
         }
+
+        sharesPercentage = sharesPercentage !== 100 ? sharesPercentage > 0.01 ? sharesPercentage.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }) : "< 0.01" : "100%";
+        remainingPercentage = remainingPercentage !== 0 ? remainingPercentage < 99.99 ? remainingPercentage.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }) : "> 99.99" : "0%";
+
         const totalLiquidityShares = transaction.added_liquidity ?
             transaction.lp_total_shares - transaction.lp_shares_received :
             transaction.lp_total_shares;
         const liquiditySharesValue = transaction.added_liquidity ? transaction.lp_shares_received : transaction.lp_shares_used;
         return [
-            {name: `Remaining LP Shares: ${remainingPercentage}%`, value: totalLiquidityShares, color: "#693992"},
-            {name: `Transaction Shares: ${sharesPercentage}%`, value: liquiditySharesValue, color: "#00ffa3"},
+            {name: `Remaining LP Shares  ${remainingPercentage}%`, value: totalLiquidityShares, color: "#693992"},
+            {name: `Transaction Shares  ${sharesPercentage}%`, value: liquiditySharesValue, color: "#00ffa3"},
         ];
     }, [transaction]);
 
@@ -71,7 +65,7 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
                     exit={{y: 40, scale: 0.95, opacity: 0}}
                     transition={{type: "spring", stiffness: 300, damping: 30}}
                     onClick={e => e.stopPropagation()}   // ⛔️ prevent backdrop close
-                    className="w-full max-w-md rounded-xl bg-[#1f2937] p-6 text-white shadow-2xl"
+                    className="rounded-xl bg-[#1f2937] p-6 text-white shadow-2xl"
                 >
                     {/* header */}
                     <h3 className="mb-6 text-center text-lg font-semibold uppercase tracking-wider text-slate-400">
@@ -147,10 +141,7 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
                                 transaction.added_liquidity
                                     ? `-$${transaction.usd_used.toLocaleString()}`
                                     : (
-                                        <div className="flex flex-col items-center">
-                                            <span>-{transaction.lp_shares_used.toLocaleString()}</span>
-                                            <span>LP Shares</span>
-                                        </div>
+                                        `-${transaction.lp_shares_used.toLocaleString()} LP Shares`
                                     )
                             }
                         />
@@ -160,12 +151,7 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
                             textColor="text-green-400"
                             value={
                                 transaction.added_liquidity
-                                    ? (
-                                        <div className="flex flex-col items-center">
-                                            <span>+{transaction.lp_shares_received.toLocaleString()}</span>
-                                            <span>LP Shares</span>
-                                        </div>
-                                    )
+                                    ? `+${transaction.lp_shares_received.toLocaleString()} LP Shares`
                                     : `+$${transaction.usd_received.toLocaleString()}`
                             }
                         />
