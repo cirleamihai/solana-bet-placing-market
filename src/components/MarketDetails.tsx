@@ -215,6 +215,7 @@ export default function MarketDetails() {
                     setNoPrice={setNoPrice}
                     setTransactionDetails={setTransactionDetails}
                     lastEventSlot={lastEventSlot}
+                    liquidityEmptyModal={liquidityEmptyModal}
                 />
             </div>
 
@@ -311,16 +312,6 @@ export default function MarketDetails() {
                 )}
 
             </div>
-            {(liquidityEmptyModal || wantsToAddLiquidity) && (
-                <AddInitialLiquidityModal
-                    marketPubkey={marketPubkey || ""}
-                    market={market}
-                    setWantsToAddLiquidity={setWantsToAddLiquidity}
-                    setLiquidityEmptyModal={setLiquidityEmptyModal}
-                    submitting={submitting}
-                    setSubmitting={setSubmitting}
-                />
-            )}
         </main>
     );
 }

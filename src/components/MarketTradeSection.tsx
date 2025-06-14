@@ -42,6 +42,7 @@ interface TradeInfo {
     setYesPrice: (price: number) => void,
     setNoPrice: (price: number) => void
     lastEventSlot: React.RefObject<number>,
+    liquidityEmptyModal: boolean
 }
 
 export default function MarketTradeSection({
@@ -54,7 +55,8 @@ export default function MarketTradeSection({
                                                setTransactionDetails,
                                                setYesPrice,
                                                setNoPrice,
-                                               lastEventSlot
+                                               lastEventSlot,
+                                               liquidityEmptyModal
                                            }: TradeInfo) {
     const {wallet, program, connection} = useAnchorProgram(); // Assuming you have a hook to get the wallet context
     const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">("yes");
@@ -101,7 +103,7 @@ export default function MarketTradeSection({
     const handleNewPurchaseBlockchainEvent = useCallback(
         async (event: { txSignature: string, transactionData: any }) => {
             // We are gonna get the blockchain transaction
-            const { transactionSlot, createdAt, userKey } = await getTransactionDetails(connection, event);
+            const {transactionSlot, createdAt, userKey} = await getTransactionDetails(connection, event);
             if (!transactionSlot || !createdAt || !userKey) {
                 console.error("Failed to get transaction details. Tx: ", event.txSignature);
                 return;
@@ -191,7 +193,7 @@ export default function MarketTradeSection({
     const totalShares = amount + expectedProfit;
 
     const purchaseOutcomeShares = async () => {
-        if (!wallet?.publicKey || !marketPool) return;
+        if (!wallet?.publicKey || !marketPool || liquidityEmptyModal) return;
 
         const [poolKey] = PublicKey.findProgramAddressSync(
             [Buffer.from("pool"), marketKey?.toBuffer() ?? Buffer.from("")],
@@ -335,153 +337,171 @@ export default function MarketTradeSection({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12 w-full  mx-auto">
 
             {/* ── Betting Box ───────────────────────────── */}
-            <div className="rounded-xl bg-[#1f2937] text-white p-6 shadow-md">
-                <div className="flex gap-4 mb-4 border-b border-gray-700 pb-2">
-                    <button
-                        className={`font-semibold text-lg px-2 border-b-2 cursor-pointer ${
-                            selectedOutcome === "yes"
-                                ? "text-green-400 border-green-400"
-                                : "text-red-500 border-red-400"
-                        }`}
-                        onClick={() => setSelectedOutcome("yes")}
-                    >
-                        Buy
-                    </button>
-                </div>
+            <div className="relative">
+                <div
+                    className={`rounded-xl bg-[#1f2937] text-white p-6 shadow-md transition-all duration-300 ${
+                        liquidityEmptyModal ? "blur-sm pointer-events-none select-none" : ""
+                    }`}
+                >
+                    <div className="flex gap-4 mb-4 border-b border-gray-700 pb-2">
+                        <button
+                            className={`font-semibold text-lg px-2 border-b-2 cursor-pointer ${
+                                selectedOutcome === "yes"
+                                    ? "text-green-400 border-green-400"
+                                    : "text-red-500 border-red-400"
+                            }`}
+                            onClick={() => setSelectedOutcome("yes")}
+                        >
+                            Buy
+                        </button>
+                    </div>
 
-                <div className="flex justify-between items-center mb-3">
-                    <button
-                        className={`flex-1 py-3 rounded-md text-center font-semibold text-lg mr-2 cursor-pointer ${
-                            selectedOutcome === "yes"
-                                ? "bg-green-500 text-white"
-                                : "bg-gray-700 text-gray-400"
-                        }`}
-                        onClick={() => setSelectedOutcome("yes")}
-                    >
-                        Yes ${yesPrice}
-                    </button>
-                    <button
-                        className={`flex-1 py-3 rounded-md text-center font-semibold text-lg ml-2 cursor-pointer ${
-                            selectedOutcome === "no"
-                                ? "bg-red-500 text-white"
-                                : "bg-gray-700 text-gray-400"
-                        }`}
-                        onClick={() => setSelectedOutcome("no")}
-                    >
-                        No ${noPrice}
-                    </button>
-                </div>
+                    <div className="flex justify-between items-center mb-3">
+                        <button
+                            className={`flex-1 py-3 rounded-md text-center font-semibold text-lg mr-2 cursor-pointer ${
+                                selectedOutcome === "yes"
+                                    ? "bg-green-500 text-white"
+                                    : "bg-gray-700 text-gray-400"
+                            }`}
+                            onClick={() => setSelectedOutcome("yes")}
+                        >
+                            Yes ${yesPrice}
+                        </button>
+                        <button
+                            className={`flex-1 py-3 rounded-md text-center font-semibold text-lg ml-2 cursor-pointer ${
+                                selectedOutcome === "no"
+                                    ? "bg-red-500 text-white"
+                                    : "bg-gray-700 text-gray-400"
+                            }`}
+                            onClick={() => setSelectedOutcome("no")}
+                        >
+                            No ${noPrice}
+                        </button>
+                    </div>
 
-                <div className="text-sm text-slate-400 mb-1">Amount</div>
-                <div className="flex items-center justify-between mb-7 w-full ">
-                    <input
-                        type="text"
-                        className="bg-transparent w-64 text-3xl font-semibold text-slate-300 focus:outline-none absolute"
-                        value={amount.toLocaleString()}
-                        onChange={(e) => handleAmountTyping(e)}
-                    />
-                    <div className="flex gap-2 ml-auto">
-                        {[10, 50, 100, 1000].map((val) => (
+                    <div className="text-sm text-slate-400 mb-1">Amount</div>
+                    <div className="flex items-center justify-between mb-7 w-full ">
+                        <input
+                            type="text"
+                            className="bg-transparent w-64 text-3xl font-semibold text-slate-300 focus:outline-none absolute"
+                            value={amount.toLocaleString()}
+                            onChange={(e) => handleAmountTyping(e)}
+                        />
+                        <div className="flex gap-2 ml-auto">
+                            {[10, 50, 100, 1000].map((val) => (
+                                <button
+                                    key={val}
+                                    onClick={() => handleAddAmount(val)}
+                                    className="bg-slate-800 border border-gray-700 px-3 py-1 cursor-pointer rounded-md text-white text-sm hover:bg-slate-700"
+                                >
+                                    +${val}
+                                </button>
+                            ))}
                             <button
-                                key={val}
-                                onClick={() => handleAddAmount(val)}
-                                className="bg-slate-800 border border-gray-700 px-3 py-1 cursor-pointer rounded-md text-white text-sm hover:bg-slate-700"
+                                onClick={() => setAmount(MAX_AMOUNT)}
+                                className="bg-slate-800 border border-gray-700 px-3 py-1 rounded-md cursor-pointer text-white text-sm hover:bg-slate-700"
                             >
-                                +${val}
+                                Max
                             </button>
-                        ))}
-                        <button
-                            onClick={() => setAmount(MAX_AMOUNT)}
-                            className="bg-slate-800 border border-gray-700 px-3 py-1 rounded-md cursor-pointer text-white text-sm hover:bg-slate-700"
-                        >
-                            Max
-                        </button>
-                        <button
-                            onClick={() => {
-                                setAmount(0);
-                                setMaxAmountReached(false);
-                            }}
-                            className="bg-pink-600 border border-gray-700 px-3 py-1 rounded-md cursor-pointer text-white text-sm hover:bg-pink-800"
-                        >
-                            Reset
-                        </button>
+                            <button
+                                onClick={() => {
+                                    setAmount(0);
+                                    setMaxAmountReached(false);
+                                }}
+                                className="bg-pink-600 border border-gray-700 px-3 py-1 rounded-md cursor-pointer text-white text-sm hover:bg-pink-800"
+                            >
+                                Reset
+                            </button>
+                        </div>
                     </div>
+
+                    {!wallet?.publicKey ? (
+                        <div className={"w-full [&_*]:w-full [&_*]:justify-center"}>
+                            <ConnectWalletButton/>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col mt-21">
+                            <div className="flex gap-6 justify-between">
+                                <div className="bg-[#2f3e4e] px-5 py-3 rounded-xl shadow-inner border border-slate-700">
+                                    <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
+                                        Expected Profit
+                                    </div>
+                                    <div
+                                        className="text-xl font-bold text-green-400">${expectedProfit.toLocaleString()}</div>
+                                </div>
+
+                                <div
+                                    className="bg-[#2f3e4e] px-5 py-3 rounded-xl shadow-inner border border-slate-700 flex flex-col">
+                                    <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
+                                        Shares to Purchase
+                                    </div>
+                                    <div
+                                        className="text-xl font-bold text-sky-400 ml-auto">{totalShares.toLocaleString()} SHARES
+                                    </div>
+                                </div>
+                            </div>
+                            <Button
+                                onClick={() => {
+                                    setSubmitting(true);
+                                    purchaseOutcomeShares().then();
+                                }}
+                                className={`w-full mt-4 h-12  cursor-pointer text-white text-xl font-semibold py-3 rounded-md transition-all duration-300 ${purchased ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}
+                                disabled={Number(amount) === 0 || submitting || purchased}
+                            >
+                                {purchased ? (
+                                    <div className="flex items-center justify-center gap-2">
+                                        <svg
+                                            className="h-5 w-5 text-white"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth={3}
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+                                        </svg>
+                                        Purchased!
+                                    </div>
+                                ) : submitting ? (
+                                    <>
+                                        <svg
+                                            className="animate-spin h-4 w-4 text-white"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"
+                                            ></path>
+                                        </svg>
+                                        Purchasing...
+                                    </>
+                                ) : (
+                                    "Purchase"
+                                )}
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
-                {!wallet?.publicKey ? (
-                    <div className={"w-full [&_*]:w-full [&_*]:justify-center"}>
-                        <ConnectWalletButton/>
-                    </div>
-                ) : (
-                    <div className="flex flex-col mt-21">
-                        <div className="flex gap-6 justify-between">
-                            <div className="bg-[#2f3e4e] px-5 py-3 rounded-xl shadow-inner border border-slate-700">
-                                <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
-                                    Expected Profit
-                                </div>
-                                <div
-                                    className="text-xl font-bold text-green-400">${expectedProfit.toLocaleString()}</div>
-                            </div>
-
-                            <div
-                                className="bg-[#2f3e4e] px-5 py-3 rounded-xl shadow-inner border border-slate-700 flex flex-col">
-                                <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
-                                    Shares to Purchase
-                                </div>
-                                <div
-                                    className="text-xl font-bold text-sky-400 ml-auto">{totalShares.toLocaleString()} SHARES
-                                </div>
-                            </div>
+                {liquidityEmptyModal && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#1f2937]/90 rounded-xl z-10">
+                        <div className="text-center p-6 bg-[#2f3e4e] border border-slate-700 rounded-xl shadow-lg max-w-sm">
+                            <h2 className="text-lg font-semibold text-red-400 mb-2">No Liquidity</h2>
+                            <p className="text-slate-300 text-sm">
+                                This market currently has no liquidity. <br />
+                                To enable trading, please add initial liquidity to the pool.
+                            </p>
                         </div>
-                        <Button
-                            onClick={() => {
-                                setSubmitting(true);
-                                purchaseOutcomeShares().then();
-                            }}
-                            className={`w-full mt-4 h-12  cursor-pointer text-white text-xl font-semibold py-3 rounded-md transition-all duration-300 ${purchased ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}
-                            disabled={Number(amount) === 0 || submitting || purchased}
-                        >
-                            {purchased ? (
-                                <div className="flex items-center justify-center gap-2">
-                                    <svg
-                                        className="h-5 w-5 text-white"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth={3}
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
-                                    </svg>
-                                    Purchased!
-                                </div>
-                            ) : submitting ? (
-                                <>
-                                    <svg
-                                        className="animate-spin h-4 w-4 text-white"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <circle
-                                            className="opacity-25"
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            stroke="currentColor"
-                                            strokeWidth="4"
-                                        ></circle>
-                                        <path
-                                            className="opacity-75"
-                                            fill="currentColor"
-                                            d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"
-                                        ></path>
-                                    </svg>
-                                    Purchasing...
-                                </>
-                            ) : (
-                                "Purchase"
-                            )}
-                        </Button>
                     </div>
                 )}
             </div>
