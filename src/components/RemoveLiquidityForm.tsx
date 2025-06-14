@@ -367,7 +367,7 @@ export default function RemoveLiquidityForm({
                             <div className="w-full border-b-2 mt-3 border-purple-800"></div>
                             <div className="text-sm uppercase text-slate-400 tracking-widest mb-1 mt-3 relative">
                                 OUTCOME SHARES TO RECEIVE
-                                <div className="group cursor-pointer absolute top-0.5 right-[-17.5px]">
+                                <div className="group cursor-pointer absolute top-0.5 right-[-17px]">
                                     {/* Info SVG Icon */}
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"

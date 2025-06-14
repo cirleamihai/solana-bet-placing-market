@@ -19,6 +19,7 @@ import {supabase} from "@/lib/supabase";
 import {toast} from "sonner";
 import {EventParser} from "@coral-xyz/anchor";
 import TransactionDetailModal from "@/components/TransactionDetailModal";
+import {Frown} from "lucide-react";
 
 type Props = {
     market: any;
@@ -212,7 +213,7 @@ export default function LiquidityPoolSection({
                     const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
                     return timeDiff !== 0 ? timeDiff : b.tx_slot - a.tx_slot;
                 });
-                
+
             });
         }
 
@@ -400,41 +401,45 @@ export default function LiquidityPoolSection({
                     <div className="rounded-xl bg-[#1f2937] text-white p-6 shadow-md w-full">
                         <div className="flex justify-between">
                             <h3 className="text-xl font-semibold mb-4">Liquidity History</h3>
-                            <h3 className="text-sm font-semibold mt-2 mr-3">Received</h3>
+                            {poolTransactions.length > 0 && (
+                                <h3 className="text-sm font-semibold mt-2 mr-3">Received</h3>
+                            )}
                         </div>
 
-                        <ul className="custom-scroll max-h-[110px] min-h-[110px] space-y-1 w-full overflow-y-auto pr-1">
-                            <AnimatePresence initial={false}>
-                                {poolTransactions.slice(0, 25).map((transaction, _i) => (
-                                    <motion.li
-                                        key={transaction.tx_signature} // ✅ Use unique key
-                                        initial={{opacity: 0, y: 10}}
-                                        animate={{opacity: 1, y: 0}}
-                                        exit={{opacity: 0, y: -10}}
-                                        transition={{duration: 0.3, ease: "easeOut"}}
-                                        className="flex items-center border-b cursor-pointer border-gray-700 px-2 py-[6px] rounded-md hover:bg-[#273447] transition duration-150 text-sm"
-                                        onClick={() => setSelectedTransaction(transaction)}
-                                    >
-                                        {/* Timestamp */}
-                                        <div
-                                            className="text-xs text-blue-400 italic min-w-[90px] text-left pr-2 leading-none">
-                                            {new Date(transaction.created_at).toLocaleString("en-US", {
-                                                month: "short",
-                                                day: "numeric",
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                                second: "2-digit",
-                                                hour12: false,
-                                            })}
-                                        </div>
 
-                                        {/* Divider */}
-                                        <div
-                                            className="ml-auto h-[20px] w-[1px] bg-slate-600 mx-2 opacity-50 rounded"></div>
+                        {poolTransactions.length > 0 ? (
+                            <ul className="custom-scroll max-h-[110px] min-h-[110px] space-y-1 w-full overflow-y-auto pr-1">
+                                <AnimatePresence initial={false}>
+                                    {poolTransactions.slice(0, 25).map((transaction, _i) => (
+                                        <motion.li
+                                            key={transaction.tx_signature} // ✅ Use unique key
+                                            initial={{opacity: 0, y: 10}}
+                                            animate={{opacity: 1, y: 0}}
+                                            exit={{opacity: 0, y: -10}}
+                                            transition={{duration: 0.3, ease: "easeOut"}}
+                                            className="flex items-center border-b cursor-pointer border-gray-700 px-2 py-[6px] rounded-md hover:bg-[#273447] transition duration-150 text-sm"
+                                            onClick={() => setSelectedTransaction(transaction)}
+                                        >
+                                            {/* Timestamp */}
+                                            <div
+                                                className="text-xs text-blue-400 italic min-w-[90px] text-left pr-2 leading-none">
+                                                {new Date(transaction.created_at).toLocaleString("en-US", {
+                                                    month: "short",
+                                                    day: "numeric",
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                    second: "2-digit",
+                                                    hour12: false,
+                                                })}
+                                            </div>
 
-                                        {/* Details */}
-                                        <div className="flex justify-between items-center flex-1 font-mono">
-                                            <div className="flex gap-2">
+                                            {/* Divider */}
+                                            <div
+                                                className="ml-auto h-[20px] w-[1px] bg-slate-600 mx-2 opacity-50 rounded"></div>
+
+                                            {/* Details */}
+                                            <div className="flex justify-between items-center flex-1 font-mono">
+                                                <div className="flex gap-2">
                                             <span
                                                 className="text-slate-300 min-w-[150px] max-w-[150px]"
                                                 title={wallet?.publicKey.toBase58()}
@@ -442,15 +447,15 @@ export default function LiquidityPoolSection({
                                               User {transaction.user_pubkey.slice(0, 5)}...{transaction.user_pubkey.slice(-4)}
                                             </span>
 
-                                                <div
-                                                    className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
-                                                <span
-                                                    className="min-w-[65px] inline-block font-mono text-slate-300 text-center">
+                                                    <div
+                                                        className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
+                                                    <span
+                                                        className="min-w-[65px] inline-block font-mono text-slate-300 text-center">
                                                     {transaction.added_liquidity ? "ADDED" : "REMOVED"}
                                             </span>
-                                                <div
-                                                    className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
-                                                <span className="text-slate-300">
+                                                    <div
+                                                        className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
+                                                    <span className="text-slate-300">
                                               {
                                                   transaction.added_liquidity ?
                                                       `$${transaction.usd_used.toLocaleString("en-US", {
@@ -463,8 +468,8 @@ export default function LiquidityPoolSection({
                                                       })} LP Shares`
                                               }
                                             </span>
-                                            </div>
-                                            <span className="text-slate-400 font-bold ml-auto">
+                                                </div>
+                                                <span className="text-slate-400 font-bold ml-auto">
                                           {
                                               transaction.added_liquidity ?
                                                   `${transaction.lp_shares_received.toLocaleString("en-US", {
@@ -477,11 +482,19 @@ export default function LiquidityPoolSection({
                                                   })}`
                                           }
                                         </span>
-                                        </div>
-                                    </motion.li>
-                                ))}
-                            </AnimatePresence>
-                        </ul>
+                                            </div>
+                                        </motion.li>
+                                    ))}
+                                </AnimatePresence>
+                            </ul>
+                        ) : (
+                            <div
+                                className="max-h-[110px] min-h-[110px] flex flex-col items-center justify-center text-slate-400">
+                                <Frown className="w-15 h-15 mb-4"/>
+                                <h2 className="text-xl font-semibold">No liquidity has been added!</h2>
+                                <p className="text-sm">Add Liquidity to enable trading.</p>
+                            </div>
+                        )}
                     </div>
 
                 </div>
