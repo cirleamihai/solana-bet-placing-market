@@ -1,4 +1,4 @@
-import {Dispatch, SetStateAction, useEffect, useMemo, useRef, useState} from "react";
+import React, {Dispatch, SetStateAction, useEffect, useMemo, useRef, useState} from "react";
 import {Button} from "@/components/ui/button";
 import {Cell, Pie, PieChart, ResponsiveContainer, Tooltip} from "recharts";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
@@ -24,6 +24,7 @@ type Props = {
     userShares: number,
     marketKey: PublicKey,
     market: any,
+    liquidityEmptyModal: boolean,
 };
 
 export default function RemoveLiquidityForm({
@@ -36,6 +37,7 @@ export default function RemoveLiquidityForm({
                                                 setReloadLiquidityPool,
                                                 market,
                                                 reloadMarket,
+                                                liquidityEmptyModal
                                             }: Props) {
     const [sharesToRemove, setSharesToRemove] = useState<number>(0);
     const [usdToReceiveForLPShares, setUsdToReceiveForLPShares] = useState<number>(0);
@@ -144,7 +146,7 @@ export default function RemoveLiquidityForm({
             let received_outcome_shares, received_outcome;
             if (transaction) {
                 const receivedShares = Number(transaction.receivedLowestOutcomeTokens) / 10 ** 9;
-                if (market.yesMint.toBase58() === transaction.receivedLowestOutcomeMint.toBase58()){
+                if (market.yesMint.toBase58() === transaction.receivedLowestOutcomeMint.toBase58()) {
                     received_outcome_shares = receivedShares;
                     received_outcome = "yes";
                 } else {
@@ -261,207 +263,222 @@ export default function RemoveLiquidityForm({
 
 
     return (
-        <div className="flex flex-col h-full">
-            {/* Shares input & quick-selects */}
-            <div className="text-sm text-slate-400 mb-1">LP Shares</div>
-            <div className="flex items-center justify-between mb-8 w-full">
-                <input
-                    type="text"
-                    className="bg-transparent w-64 text-3xl font-semibold text-slate-300 focus:outline-none absolute"
-                    value={sharesToRemove.toLocaleString()}
-                    onChange={(e) => handleAmountTyping(e)}
-                />
-                <div className="flex gap-2 ml-auto">
-                    {[10, 50, 100, 1000].map((val) => (
+        <div className="relative rounded-xl h-full">
+            <div className={`flex flex-col h-full ${liquidityEmptyModal ? "blur-xl pointer-events-none select-none" : ""}`}>
+                {/* Shares input & quick-selects */}
+                <div className="text-sm text-slate-400 mb-1">LP Shares</div>
+                <div className="flex items-center justify-between mb-8 w-full">
+                    <input
+                        type="text"
+                        className="bg-transparent w-64 text-3xl font-semibold text-slate-300 focus:outline-none absolute"
+                        value={sharesToRemove.toLocaleString()}
+                        onChange={(e) => handleAmountTyping(e)}
+                    />
+                    <div className="flex gap-2 ml-auto">
+                        {[10, 50, 100, 1000].map((val) => (
+                            <button
+                                key={val}
+                                onClick={() => handleAddAmount(val)}
+                                className="bg-slate-800 border border-gray-700 px-3 py-1 cursor-pointer rounded-md text-white text-sm hover:bg-slate-700"
+                            >
+                                +{val}
+                            </button>
+                        ))}
                         <button
-                            key={val}
-                            onClick={() => handleAddAmount(val)}
-                            className="bg-slate-800 border border-gray-700 px-3 py-1 cursor-pointer rounded-md text-white text-sm hover:bg-slate-700"
+                            onClick={() => handleAddAmount(MAX_AMOUNT)}
+                            className="bg-slate-800 border border-gray-700 px-3 py-1 rounded-md cursor-pointer text-white text-sm hover:bg-slate-700"
                         >
-                            +{val}
+                            Max
                         </button>
-                    ))}
-                    <button
-                        onClick={() => handleAddAmount(MAX_AMOUNT)}
-                        className="bg-slate-800 border border-gray-700 px-3 py-1 rounded-md cursor-pointer text-white text-sm hover:bg-slate-700"
-                    >
-                        Max
-                    </button>
-                    <button
-                        onClick={() => {
-                            setSharesToRemove(0);
-                            setMaxAmountReached(false);
-                        }}
-                        className="bg-pink-600 border border-gray-700 px-3 py-1 rounded-md cursor-pointer text-white text-sm hover:bg-pink-800"
-                    >
-                        Reset
-                    </button>
+                        <button
+                            onClick={() => {
+                                setSharesToRemove(0);
+                                setMaxAmountReached(false);
+                            }}
+                            className="bg-pink-600 border border-gray-700 px-3 py-1 rounded-md cursor-pointer text-white text-sm hover:bg-pink-800"
+                        >
+                            Reset
+                        </button>
+                    </div>
                 </div>
-            </div>
 
 
-            {wallet?.publicKey ? (
-                <div className="mt-auto mb-auto">
-                    {/* ── Chart & Shares Grid ── */}
-                    <div className="flex flex-wrap justify-between gap-6 mb-6">
-                        <div
-                            className=" flex flex-col justify-center items-center bg-[#270740] p-5 rounded-xl shadow-inner border border-[#5c2c78]
+                {wallet?.publicKey ? (
+                    <div className="mt-auto mb-auto">
+                        {/* ── Chart & Shares Grid ── */}
+                        <div className="flex flex-wrap justify-between gap-6 mb-6">
+                            <div
+                                className=" flex flex-col justify-center items-center bg-[#270740] p-5 rounded-xl shadow-inner border border-[#5c2c78]
 ">
-                            <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
-                                Potential Pool Share
-                            </div>
-                            {!maxAmountReached ?
-                                (<div className="md:col-span-2 flex items-center">
-                                    <div className="w-35 h-28">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={chartData}
-                                                    dataKey="value"
-                                                    nameKey="name"
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    innerRadius="50%"
-                                                    outerRadius="80%"
-                                                    stroke="none"
-                                                >
-                                                    <Cell fill="#00ffa3"/>
-                                                    <Cell fill="#693992"/>
-                                                </Pie>
-                                                <Tooltip formatter={(v: any) => `${v.toLocaleString()} shares`}/>
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                    {/* Legend on the right */}
-                                    <div className="ml-0 space-y-2">
-                                        {chartData.map((entry, idx) => (
-                                            <div key={entry.name} className="flex items-center text-slate-200">
+                                <div className="text-sm uppercase text-slate-400 tracking-widest mb-1">
+                                    Potential Pool Share
+                                </div>
+                                {!maxAmountReached ?
+                                    (<div className="md:col-span-2 flex items-center">
+                                        <div className="w-35 h-28">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie
+                                                        data={chartData}
+                                                        dataKey="value"
+                                                        nameKey="name"
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius="50%"
+                                                        outerRadius="80%"
+                                                        stroke="none"
+                                                    >
+                                                        <Cell fill="#00ffa3"/>
+                                                        <Cell fill="#693992"/>
+                                                    </Pie>
+                                                    <Tooltip formatter={(v: any) => `${v.toLocaleString()} shares`}/>
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                        {/* Legend on the right */}
+                                        <div className="ml-0 space-y-2">
+                                            {chartData.map((entry, idx) => (
+                                                <div key={entry.name} className="flex items-center text-slate-200">
                                           <span
                                               className="w-3 h-3 rounded-full inline-block mr-2"
                                               style={{backgroundColor: idx === 0 ? "#00ffa3" : "#693992"}}
                                           />
-                                                <span className="text-sm">{entry.name}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>) : (
-                                    <div
-                                        className="mt-4 text-sm font-semibold text-yellow-400 bg-yellow-900 bg-opacity-30 px-3 py-2 rounded-md shadow-inner">
-                                        ⚠️ Liquidity Pool will be empty and no more bets will take place!
-                                    </div>
-                                )}
-                        </div>
-
-                        {/* Shares to Purchase occupies 1/3 of the width */}
-                        <div className="md:col-span-1 md:col-start-3 bg-[#270740] p-5 rounded-xl shadow-inner border border-[#5c2c78]
- flex flex-col items-center">
-                            <div className="text-sm uppercase text-slate-400 tracking-widest mb-1 ">
-                                USD-UBB TO RECEIVE
+                                                    <span className="text-sm">{entry.name}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>) : (
+                                        <div
+                                            className="mt-4 text-sm font-semibold text-yellow-400 bg-yellow-900 bg-opacity-30 px-3 py-2 rounded-md shadow-inner">
+                                            ⚠️ Liquidity Pool will be empty and no more bets will take place!
+                                        </div>
+                                    )}
                             </div>
-                            <div
-                                className="text-xl font-bold text-purple-400">${usdToReceiveForLPShares.toLocaleString("en-US", {
-                                maximumFractionDigits: 2,
-                                minimumFractionDigits: 2
-                            })}</div>
 
-                            <div className="w-full border-b-2 mt-3 border-purple-800"></div>
-                            <div className="text-sm uppercase text-slate-400 tracking-widest mb-1 mt-3 relative">
-                                OUTCOME SHARES TO RECEIVE
-                                <div className="group cursor-pointer absolute top-0.5 right-[-17px]">
-                                    {/* Info SVG Icon */}
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-4 w-4 text-purple-400 hover:text-white transition duration-200"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        strokeWidth={2}
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z"
-                                        />
-                                    </svg>
+                            {/* Shares to Purchase occupies 1/3 of the width */}
+                            <div className="md:col-span-1 md:col-start-3 bg-[#270740] p-5 rounded-xl shadow-inner border border-[#5c2c78]
+ flex flex-col items-center">
+                                <div className="text-sm uppercase text-slate-400 tracking-widest mb-1 ">
+                                    USD-UBB TO RECEIVE
+                                </div>
+                                <div
+                                    className="text-xl font-bold text-purple-400">${usdToReceiveForLPShares.toLocaleString("en-US", {
+                                    maximumFractionDigits: 2,
+                                    minimumFractionDigits: 2
+                                })}</div>
 
-                                    {/* Tooltip message */}
-                                    <div
-                                        className="absolute right-0 mt-2 w-64 text-xs text-white bg-gray-800 p-3 rounded-xl shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition duration-300 z-50">
-                                        In case the market OUTCOMES are not equal, you will also receive shares from the
-                                        least likely outcome. Users can trade these shares on the market for a profit.
+                                <div className="w-full border-b-2 mt-3 border-purple-800"></div>
+                                <div className="text-sm uppercase text-slate-400 tracking-widest mb-1 mt-3 relative">
+                                    OUTCOME SHARES TO RECEIVE
+                                    <div className="group cursor-pointer absolute top-0.5 right-[-17px]">
+                                        {/* Info SVG Icon */}
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            className="h-4 w-4 text-purple-400 hover:text-white transition duration-200"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z"
+                                            />
+                                        </svg>
+
+                                        {/* Tooltip message */}
+                                        <div
+                                            className="absolute right-0 mt-2 w-64 text-xs text-white bg-gray-800 p-3 rounded-xl shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition duration-300 z-50">
+                                            In case the market OUTCOMES are not equal, you will also receive shares from
+                                            the
+                                            least likely outcome. Users can trade these shares on the market for a
+                                            profit.
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div className={`text-xl font-bold ${outcomeShares.toLowerCase().includes("no") ?
-                                "text-red-400" : outcomeShares.toLowerCase().includes("yes")
-                                    ? "text-green-400" : "text-purple-400"}`}>{outcomeShares} SHARES
-                            </div>
+                                <div className={`text-xl font-bold ${outcomeShares.toLowerCase().includes("no") ?
+                                    "text-red-400" : outcomeShares.toLowerCase().includes("yes")
+                                        ? "text-green-400" : "text-purple-400"}`}>{outcomeShares} SHARES
+                                </div>
 
 
+                            </div>
+                        </div>
+                        <Button
+                            className={`w-full h-12 text-xl font-semibold cursor-pointer ${
+                                liquidityRemoved
+                                    ? "bg-green-600 hover:bg-green-700"
+                                    : "bg-[#630287] hover:bg-[#3f0164]"
+                            }`}
+                            disabled={submitting || sharesToRemove <= 0}
+                            onClick={removeLiquidityBlockchain}
+                        >
+                            {liquidityRemoved ? (
+                                <div className="flex items-center justify-center gap-2">
+                                    <svg
+                                        className="h-5 w-5 text-white"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth={3}
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    Liquidity Removed!
+                                </div>
+                            ) : submitting ? (
+                                <div className="flex items-center justify-center gap-2">
+                                    <svg
+                                        className="animate-spin h-5 w-5 text-white"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            className="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            strokeWidth="4"
+                                        ></circle>
+                                        <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"
+                                        ></path>
+                                    </svg>
+                                    Removing liquidity…
+                                </div>
+                            ) : (
+                                "Remove Liquidity"
+                            )}
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="flex flex-col h-full">
+
+                        <div className="h-[160px] flex flex-col items-center justify-center text-slate-400">
+                            <Frown className="w-20 h-20 mb-4"/>
+                            <h2 className="text-xl font-semibold">You need to be signed in!</h2>
+                            <p className="text-sm">Afterwards, you will be able to trade.</p>
+                        </div>
+
+                        <div className="w-full mt-auto mb-12 [&_*]:w-full [&_*]:justify-center">
+                            <ConnectWalletButton/>
                         </div>
                     </div>
-                    <Button
-                        className={`w-full h-12 text-xl font-semibold cursor-pointer ${
-                            liquidityRemoved
-                                ? "bg-green-600 hover:bg-green-700"
-                                : "bg-[#630287] hover:bg-[#3f0164]"
-                        }`}
-                        disabled={submitting || sharesToRemove <= 0}
-                        onClick={removeLiquidityBlockchain}
-                    >
-                        {liquidityRemoved ? (
-                            <div className="flex items-center justify-center gap-2">
-                                <svg
-                                    className="h-5 w-5 text-white"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth={3}
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
-                                </svg>
-                                Liquidity Removed!
-                            </div>
-                        ) : submitting ? (
-                            <div className="flex items-center justify-center gap-2">
-                                <svg
-                                    className="animate-spin h-5 w-5 text-white"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <circle
-                                        className="opacity-25"
-                                        cx="12"
-                                        cy="12"
-                                        r="10"
-                                        stroke="currentColor"
-                                        strokeWidth="4"
-                                    ></circle>
-                                    <path
-                                        className="opacity-75"
-                                        fill="currentColor"
-                                        d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"
-                                    ></path>
-                                </svg>
-                                Removing liquidity…
-                            </div>
-                        ) : (
-                            "Remove Liquidity"
-                        )}
-                    </Button>
-                </div>
-            ) : (
-                <div className="flex flex-col h-full">
-
-                    <div className="h-[160px] flex flex-col items-center justify-center text-slate-400">
-                        <Frown className="w-20 h-20 mb-4"/>
-                        <h2 className="text-xl font-semibold">You need to be signed in!</h2>
-                        <p className="text-sm">Afterwards, you will be able to trade.</p>
-                    </div>
-
-                    <div className="w-full mt-auto mb-12 [&_*]:w-full [&_*]:justify-center">
-                        <ConnectWalletButton/>
+                )}
+            </div>
+            {liquidityEmptyModal && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-xl z-10">
+                    <div className="text-center p-6 bg-[#2f3e4e] border border-slate-700 rounded-xl shadow-lg">
+                        <h2 className="text-xl font-semibold text-red-400 mb-2">No Liquidity Found</h2>
+                        <p className="text-slate-300 text-md">
+                            You cannot remove liquidity from an empty pool. <br />
+                            Please add liquidity to the pool first.
+                        </p>
                     </div>
                 </div>
             )}

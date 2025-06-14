@@ -8,7 +8,6 @@ import MarketPriceChart, {ChartPoint} from "@/components/MarketPriceChart";
 import MarketTradeSection, {TransactionDetails} from "@/components/MarketTradeSection";
 import {toast} from "sonner";
 import LiquidityPoolSection from "@/components/LiquidityPoolSection";
-import AddInitialLiquidityModal from "@/components/AddInitialLiquidityModal";
 import {DUMMY_PUBKEY} from "@/lib/constants";
 
 export default function MarketDetails() {
@@ -306,6 +305,7 @@ export default function MarketDetails() {
                         setReloadLiquidityPool={setReloadLiquidityPool}
                         reloadLiquidityPool={reloadLiquidityPool}
                         marketDataLoading={marketDataLoading}
+                        liquidityEmptyModal={liquidityEmptyModal}
                     />
                 ) : (
                     <p className="text-slate-400">Loading pool …</p>

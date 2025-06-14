@@ -29,7 +29,8 @@ type Props = {
     setReloadMarket: Dispatch<SetStateAction<number>>;
     reloadLiquidityPool: number;
     setReloadLiquidityPool: Dispatch<SetStateAction<number>>;
-    marketDataLoading: boolean
+    marketDataLoading: boolean,
+    liquidityEmptyModal: boolean
 };
 
 export interface LiquidityPoolTransaction {
@@ -57,6 +58,7 @@ export default function LiquidityPoolSection({
                                                  reloadLiquidityPool,
                                                  setReloadLiquidityPool,
                                                  marketDataLoading,
+                                                 liquidityEmptyModal
                                              }: Props) {
     const {connection, wallet, program} = useAnchorProgram();
 
@@ -293,48 +295,58 @@ export default function LiquidityPoolSection({
                         <div className="grid grid-cols-4 grid-rows-2 gap-4">
                             {/* ─── Pie Chart ─── */}
                             <div className="row-span-2 flex items-center justify-center">
-                                <div className="flex items-center">
-                                    {/* Chart */}
-                                    <div className="w-[130px] h-[130px]">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={chartData}
-                                                    dataKey="value"
-                                                    nameKey="name"
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    innerRadius="50%"
-                                                    outerRadius="80%"
-                                                    stroke="none"
-                                                >
-                                                    <Cell fill="#00ffa3"/>
-                                                    <Cell fill="#693992"/>
-                                                </Pie>
-                                                <Tooltip formatter={(v: any) => `${v.toLocaleString()} shares`}/>
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
+                                {chartData[0].value !== 0 || chartData[1].value !== 0 ? (
+                                    <div className="flex items-center">
+                                        {/* Chart */}
+                                        <div className="w-[130px] h-[130px]">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie
+                                                        data={chartData}
+                                                        dataKey="value"
+                                                        nameKey="name"
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius="50%"
+                                                        outerRadius="80%"
+                                                        stroke="none"
+                                                    >
+                                                        <Cell fill="#00ffa3"/>
+                                                        <Cell fill="#693992"/>
+                                                    </Pie>
+                                                    <Tooltip formatter={(v: any) => `${v.toLocaleString()} shares`}/>
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        </div>
 
-                                    {/* Legend */}
-                                    <div className="space-y-2">
-                                        {chartData.map((entry, idx) => (
-                                            <div key={entry.name} className="flex items-center text-slate-300">
+                                        {/* Legend */}
+                                        <div className="space-y-2">
+                                            {chartData.map((entry, idx) => (
+                                                <div key={entry.name} className="flex items-center text-slate-300">
                                             <span
                                                 className="w-3 h-3 rounded-full inline-block mr-2"
                                                 style={{backgroundColor: idx === 0 ? "#00ffa3" : "#693992"}}
                                             />
-                                                <span className="text-sm">{entry.name}</span>
-                                            </div>
-                                        ))}
+                                                    <span className="text-sm">{entry.name}</span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                ) : (
+                                    <div
+                                        className="flex flex-col items-center justify-center text-slate-400">
+                                        <Frown className="w-12 h-12 mb-4"/>
+                                        <h2 className="text-md font-semibold">No data found!</h2>
+                                        <p className="text-sm">Check back later.</p>
+                                    </div>
+                                )}
                             </div>
 
                             {/* ─── Stat 1 ─── */}
                             <div
                                 className="bg-[#2a3646] rounded-lg p-4 shadow-inner border border-slate-700 text-center">
-                                <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">Total Liquidity
+                                <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">
+                                    Total Liquidity
                                 </div>
                                 <div className="text-md font-semibold text-blue-400">
                                     {liquidityPoolShares.toLocaleString()} Shares
@@ -571,6 +583,7 @@ export default function LiquidityPoolSection({
                                         reloadMarket={reloadMarket}
                                         setReloadMarket={setReloadMarket}
                                         market={market}
+                                        liquidityEmptyModal={liquidityEmptyModal}
                                     />
                                 </motion.div>
                             )}
