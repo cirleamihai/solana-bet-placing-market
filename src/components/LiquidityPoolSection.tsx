@@ -397,13 +397,13 @@ export default function LiquidityPoolSection({
                     </div>
 
                     {/* ─── Liquidity Pool Actions ─── */}
-                    <div className="rounded-xl bg-[#1f2937] text-white p-6 shadow-md">
+                    <div className="rounded-xl bg-[#1f2937] text-white p-6 shadow-md w-full">
                         <div className="flex justify-between">
                             <h3 className="text-xl font-semibold mb-4">Liquidity History</h3>
                             <h3 className="text-sm font-semibold mt-2 mr-3">Received</h3>
                         </div>
 
-                        <ul className="custom-scroll max-h-[110px] min-h-[110px] space-y-1 overflow-y-auto pr-1">
+                        <ul className="custom-scroll max-h-[110px] min-h-[110px] space-y-1 w-full overflow-y-auto pr-1">
                             <AnimatePresence initial={false}>
                                 {poolTransactions.slice(0, 25).map((transaction, _i) => (
                                     <motion.li
@@ -436,7 +436,7 @@ export default function LiquidityPoolSection({
                                         <div className="flex justify-between items-center flex-1 font-mono">
                                             <div className="flex gap-2">
                                             <span
-                                                className="text-slate-300"
+                                                className="text-slate-300 min-w-[150px] max-w-[150px]"
                                                 title={wallet?.publicKey.toBase58()}
                                             >
                                               User {transaction.user_pubkey.slice(0, 5)}...{transaction.user_pubkey.slice(-4)}
@@ -445,7 +445,7 @@ export default function LiquidityPoolSection({
                                                 <div
                                                     className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
                                                 <span
-                                                    className="min-w-[53px] inline-block font-mono text-slate-300 text-center">
+                                                    className="min-w-[65px] inline-block font-mono text-slate-300 text-center">
                                                     {transaction.added_liquidity ? "ADDED" : "REMOVED"}
                                             </span>
                                                 <div
@@ -456,15 +456,15 @@ export default function LiquidityPoolSection({
                                                       `$${transaction.usd_used.toLocaleString("en-US", {
                                                           maximumFractionDigits: 2,
                                                           minimumFractionDigits: 2
-                                                      })} into the pool` :
+                                                      })}` :
                                                       `${transaction.lp_shares_used.toLocaleString("en-US", {
                                                           maximumFractionDigits: 2,
                                                           minimumFractionDigits: 2
-                                                      })} LP Shares from the pool`
+                                                      })} LP Shares`
                                               }
                                             </span>
                                             </div>
-                                            <span className="text-slate-400 font-bold">
+                                            <span className="text-slate-400 font-bold ml-auto">
                                           {
                                               transaction.added_liquidity ?
                                                   `${transaction.lp_shares_received.toLocaleString("en-US", {
