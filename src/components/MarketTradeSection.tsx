@@ -353,7 +353,7 @@ export default function MarketTradeSection({
             <div className="relative">
                 <div
                     className={`rounded-xl bg-[#1f2937] text-white p-6 shadow-md transition-all duration-300 ${
-                        liquidityEmptyModal ? "blur-sm pointer-events-none select-none" : ""
+                        (liquidityEmptyModal || market.resolved) ? "blur-sm pointer-events-none select-none" : ""
                     }`}
                 >
                     <div className="flex gap-4 mb-4 border-b border-gray-700 pb-2">
@@ -506,14 +506,71 @@ export default function MarketTradeSection({
                     )}
                 </div>
 
-                {liquidityEmptyModal && (
+                {liquidityEmptyModal && !market.resolved && (
                     <div className="absolute inset-0 flex items-center justify-center bg-[#1f2937]/90 rounded-xl z-10">
-                        <div className="text-center p-6 bg-[#2f3e4e] border border-slate-700 rounded-xl shadow-lg max-w-sm">
+                        <div
+                            className="text-center p-6 bg-[#2f3e4e] border border-slate-700 rounded-xl shadow-lg max-w-sm">
                             <h2 className="text-lg font-semibold text-red-400 mb-2">No Liquidity</h2>
                             <p className="text-slate-300 text-sm">
-                                This market currently has no liquidity. <br />
+                                This market currently has no liquidity. <br/>
                                 To enable trading, please add initial liquidity to the pool.
                             </p>
+                        </div>
+                    </div>
+                )}
+                {market.resolved && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#1f2937]/90 rounded-xl z-10">
+                        <div className="text-center p-6 bg-[#2f3e4e] border border-slate-700 rounded-xl shadow-lg">
+                            <h2 className="text-2xl font-semibold text-sky-400 mb-2">Market Resolved!</h2>
+                            <p className="text-slate-300">
+                                The Market has been resolved by an elected third party! <br/>
+                                { (yesSharesOwned || noSharesOwned) ?
+                                    "You cannot trade anymore - remove your shares from the pool."
+                                    : "You cannot trade anymore - chose another market."
+                                }
+                            </p>
+                            <div className="flex justify-between mt-5">
+                                <div className="text-lg font-semibold text-sky-400 ">
+                                    Outcome Resolution:
+                                </div>
+                                <div
+                                    className={`min-w-3/7 rounded-md text-center font-semibold text-lg ml-2 ${
+                                        market.outcome === 0
+                                            ? "bg-red-500 text-white"
+                                            : "bg-green-500 text-white"
+                                    }`}
+                                >
+                                    {market.outcome ? "Yes" : "No"}
+                                </div>
+                            </div>
+                            {(yesSharesOwned || noSharesOwned) && (
+                                <div className="mt-6 text-center">
+                                    <p className="text-slate-400 mb-3 font-medium text-sm">
+                                        You are eligible to withdraw your winnings.
+                                    </p>
+                                    <button
+                                        onClick={() => {}}
+                                        className="inline-flex items-center cursor-pointer gap-2 bg-purple-400 hover:bg-purple-500 text-black font-semibold px-5 py-2.5 rounded-md shadow-md hover:shadow-lg transition"
+                                    >
+                                        {/* Coin icon */}
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            className="h-5 w-5"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3m0 0c1.657 0 3-1.343 3-3s-1.343-3-3-3m0 6v3m0-3v-3"
+                                            />
+                                        </svg>
+                                        Withdraw Winnings
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
