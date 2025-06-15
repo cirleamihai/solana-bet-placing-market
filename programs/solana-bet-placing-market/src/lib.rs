@@ -400,6 +400,11 @@ pub mod solana_bet_placing_market {
                 ]],
             )?;
 
+            msg!(
+                "Pool liquidity Value: {}, User Belonging Money: {}",
+                ctx.accounts.pool.liquidity_value,
+                user_belonging_money
+            );
             // Then we are removing the shares from our representation of the pool
             ctx.accounts.pool.usd_collateral -= user_belonging_money;
             ctx.accounts.pool.liquidity_value -= user_belonging_money;
@@ -582,6 +587,14 @@ pub mod solana_bet_placing_market {
         // Set the outcome and mark the market as resolved
         ctx.accounts.market.outcome = Some(outcome);
         ctx.accounts.market.resolved = true;
+
+        // Then we will update the pool liquidity value by transforming
+        // the desired outcome into 1 usd value
+        ctx.accounts.pool.liquidity_value = if outcome == 0 {
+            ctx.accounts.pool.no_liquidity
+        } else {
+            ctx.accounts.pool.yes_liquidity
+        };
 
         emit!(MarketResolvedEvent {
             market: ctx.accounts.market.key(),
@@ -1428,6 +1441,9 @@ pub struct PurchaseOutcomeShares<'info> {
 pub struct ResolveMarket<'info> {
     #[account(mut, has_one = oracle)]
     pub market: Account<'info, Market>,
+
+    #[account(mut)]
+    pub pool: Account<'info, MarketPool>,
 
     /// CHECK: must match `market.oracle`, enforced by `has_one`
     pub oracle: Signer<'info>,

@@ -692,6 +692,10 @@
           "writable": true
         },
         {
+          "name": "pool",
+          "writable": true
+        },
+        {
           "name": "oracle",
           "signer": true,
           "relations": [
