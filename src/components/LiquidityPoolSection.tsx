@@ -368,18 +368,28 @@ export default function LiquidityPoolSection({
                                 <div className="text-sm uppercase tracking-wide text-slate-400 mb-4">
                                     Pool Liquidity
                                 </div>
-                                <div className="text-xl font-semibold text-green-400">
-                                    {(poolAccount?.yesLiquidity.toNumber() / 10 ** 9).toLocaleString("en-US", {
-                                        maximumFractionDigits: 3,
-                                        minimumFractionDigits: 3
-                                    })} Yes
+                                <div className="text-xl font-semibold text-green-400 flex flex-col">
+                                    <div>
+                                        {(poolAccount?.yesLiquidity.toNumber() / 10 ** 9).toLocaleString("en-US", {
+                                            maximumFractionDigits: 3,
+                                            minimumFractionDigits: 3
+                                        })}
+                                    </div>
+                                    <div>
+                                        Yes
+                                    </div>
                                 </div>
                                 <div className="border-b border-slate-600 my-2 mx-auto w-full"/>
-                                <div className="text-xl font-semibold text-red-400">
-                                    {(poolAccount?.noLiquidity.toNumber() / 10 ** 9).toLocaleString("en-US", {
-                                        maximumFractionDigits: 3,
-                                        minimumFractionDigits: 3
-                                    })} No
+                                <div className="text-xl font-semibold text-red-400 flex flex-col">
+                                    <div>
+                                        {(poolAccount?.noLiquidity.toNumber() / 10 ** 9).toLocaleString("en-US", {
+                                            maximumFractionDigits: 3,
+                                            minimumFractionDigits: 3
+                                        })}
+                                    </div>
+                                    <div>
+                                        No
+                                    </div>
                                 </div>
                             </div>
 

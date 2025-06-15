@@ -524,7 +524,7 @@ export default function MarketTradeSection({
                                     >
                                         {/* Timestamp */}
                                         <div
-                                            className="text-xs text-blue-400 italic min-w-[90px] text-left pr-2 leading-none">
+                                            className="text-xs text-blue-400 italic min-w-[110px] text-left pr-2 leading-none">
                                             {new Date(trade.created_at).toLocaleString("en-US", {
                                                 month: "short",
                                                 day: "numeric",
@@ -551,8 +551,8 @@ export default function MarketTradeSection({
 
                                                 <div
                                                     className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
-                                                <span className="min-w-[100px] inline-block font-mono text-slate-300">
-                                                    +{trade.amount_purchased.toFixed(2).toLocaleString()}{" "}
+                                                <span className="min-w-[105px] inline-block font-mono text-slate-300">
+                                                    +{trade.amount_purchased.toLocaleString("en-US", {maximumFractionDigits: 2})}{" "}
                                                     {trade.purchased_outcome[0].toUpperCase() + trade.purchased_outcome.slice(1)}
                                             </span>
                                                 <div

@@ -349,7 +349,7 @@ export default function RemoveLiquidityForm({
                                         </div>
                                     </div>) : (
                                         <div
-                                            className="mt-4 text-sm font-semibold text-yellow-400 bg-yellow-900 bg-opacity-30 px-3 py-2 rounded-md shadow-inner">
+                                            className="mt-4 text-sm font-semibold text-center text-yellow-400 bg-yellow-900 bg-opacity-30 max-w-[250px] px-3 py-2 rounded-md shadow-inner">
                                             ⚠️ Liquidity Pool will be empty and no more bets will take place!
                                         </div>
                                     )}
