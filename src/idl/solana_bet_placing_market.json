@@ -1061,6 +1061,10 @@
             "type": "u64"
           },
           {
+            "name": "market_volume",
+            "type": "u64"
+          },
+          {
             "name": "resolved",
             "type": "bool"
           },

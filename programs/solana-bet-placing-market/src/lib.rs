@@ -39,6 +39,7 @@ pub mod solana_bet_placing_market {
         market.vault = ctx.accounts.vault.key();
         market.authority = ctx.accounts.authority.key();
         market.market_number = market_factory.created_markets;
+        market.market_volume = 0;
         market.oracle = oracle_key; // This is the external resolver
         market.bump = ctx.bumps.market;
         market.outcome = None;
@@ -454,6 +455,8 @@ pub mod solana_bet_placing_market {
 
             token::transfer(cpi_ctx, usd_amount)?;
         }
+        // Increase the market volume
+        ctx.accounts.market.market_volume += usd_amount;
 
         let wanted_token_account;
         let other_token_account;
@@ -1097,6 +1100,7 @@ pub struct Market {
     pub authority: Pubkey, // Who can create and do operations on the market
     pub oracle: Pubkey,    // Who can resolve markets and set outcomes
     pub market_number: u64,
+    pub market_volume: u64, // How much volume has been traded on the market
     pub resolved: bool,
     pub outcome: Option<u8>, // 0 = No, 1 = Yes,
     pub bump: u8,
@@ -1176,7 +1180,7 @@ pub struct ResolveUserWinningsEvent {
 
 impl Market {
     // Calculate the required space. Remember: 8 bytes for the discriminator.
-    pub const LEN: usize = 8 + 32 * 7 + 8 + 1 + 2 + 1;
+    pub const LEN: usize = 8 + 32 * 7 + 8 * 2 + 1 + 2 + 1;
 }
 
 impl MarketPool {
