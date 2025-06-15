@@ -5,7 +5,7 @@ import ConnectWalletButton from "@/components/ConnectWalletButton";
 import {computePotentialShareProfit} from "@/blockchain/computePotentialShareProfit";
 import {PublicKey, Transaction} from "@solana/web3.js";
 import BN from "bn.js";
-import {getAssociatedTokenAddress, TOKEN_PROGRAM_ID} from "@solana/spl-token";
+import {TOKEN_PROGRAM_ID} from "@solana/spl-token";
 import {USD_MINT} from "@/lib/constants";
 import {toast} from "sonner";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
@@ -304,17 +304,29 @@ export default function MarketTradeSection({
     }
 
     const getOwnedShares = async () => {
-        const yesATA = await getAssociatedTokenAddress(market.yesMint, wallet?.publicKey as PublicKey);
-        const noATA = await getAssociatedTokenAddress(market.noMint, wallet?.publicKey as PublicKey);
+        if (!wallet?.publicKey || !market) return {yesShares: 0, noShares: 0};
 
         try {
-            const yesAccount = await connection.getTokenAccountBalance(yesATA);
-            const noAccount = await connection.getTokenAccountBalance(noATA);
+            const yesTokenAccount = (await createAssociatedTokenAccounts(
+                market.yesMint,
+                wallet.publicKey,
+                wallet,
+                connection,
+                []
+            )).account;
+            const noTokenAccount = (await createAssociatedTokenAccounts(
+                market.noMint,
+                wallet.publicKey,
+                wallet,
+                connection,
+                []
+            )).account;
+
             return {
                 // @ts-ignore
-                yesShares: Number(yesAccount.value.amount) / 10 ** 9, // Convert from lamports to shares
+                yesShares: yesTokenAccount ? Number(yesTokenAccount.value.amount) / 10 ** 9 : 0, // Convert from lamports to shares
                 // @ts-ignore
-                noShares: Number(noAccount.value.amount) / 10 ** 9, // Convert from lamports to shares
+                noShares: yesTokenAccount ? Number(noTokenAccount.value.amount) / 10 ** 9 : 0, // Convert from lamports to shares
             };
         } catch (error) {
             toast.error("Failed to fetch owned shares:");

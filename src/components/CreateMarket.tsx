@@ -26,6 +26,7 @@ import {ensureFactory} from "@/blockchain/ensureFactory";
 import BN from "bn.js";
 import {supabase} from "@/lib/supabase";
 import {AnchorProvider} from "@coral-xyz/anchor";
+import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
 
 interface Props {
     open: boolean;
@@ -37,7 +38,7 @@ export default function CreateMarketModal({open, onClose}: Props) {
     const [marketName, setMarketName] = useState("");
     const [selectedTopic, setSelectedTopic] = useState("");
     const [submitting, setSubmitting] = useState(false);
-    const {program, wallet} = useAnchorProgram();
+    const {program, wallet, connection} = useAnchorProgram();
 
     const handleSubmit = async () => {
         if (!program || !wallet?.publicKey || !marketName || !selectedTopic) {
@@ -116,7 +117,7 @@ export default function CreateMarketModal({open, onClose}: Props) {
             const _sig = await provider.sendAndConfirm(tx);
 
             // Also update the supabase metadata
-            const {data, error} = await supabase
+            const {error} = await supabase
                 .from("market_metadata")
                 .insert({
                     market_pubkey: marketPda.toBase58(),
@@ -126,9 +127,7 @@ export default function CreateMarketModal({open, onClose}: Props) {
                 });
 
             if (error) {
-                console.error("Supabase insert error:", error);
-                toast.error("Market was created but metadata failed to save.");
-                return
+                throw new Error(error.message)
             }
 
             toast.success("Market created successfully!");
