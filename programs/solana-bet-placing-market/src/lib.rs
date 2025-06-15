@@ -70,26 +70,6 @@ pub mod solana_bet_placing_market {
         Ok(())
     }
 
-    pub fn resolve_market(ctx: Context<ResolveMarket>, outcome: u8) -> Result<()> {
-        require!(
-            ctx.accounts.market.resolved == false,
-            MarketError::MarketResolved
-        );
-        require!(outcome == 0 || outcome == 1, MarketError::InvalidOutcome);
-
-        // Set the outcome and mark the market as resolved
-        ctx.accounts.market.outcome = Some(outcome);
-        ctx.accounts.market.resolved = true;
-
-        emit!(MarketResolvedEvent {
-            market: ctx.accounts.market.key(),
-            solver: ctx.accounts.oracle.key(),
-            outcome,
-        });
-
-        Ok(())
-    }
-
     #[inline(never)]
     pub fn add_liquidity(ctx: Context<PoolLiquidity>, usd_amount: u64) -> Result<()> {
         require!(usd_amount > 0, MarketError::Zero);
@@ -589,6 +569,104 @@ pub mod solana_bet_placing_market {
 
         Ok(())
     }
+
+    pub fn resolve_market(ctx: Context<ResolveMarket>, outcome: u8) -> Result<()> {
+        require!(
+            ctx.accounts.market.resolved == false,
+            MarketError::MarketResolved
+        );
+        require!(outcome == 0 || outcome == 1, MarketError::InvalidOutcome);
+
+        // Set the outcome and mark the market as resolved
+        ctx.accounts.market.outcome = Some(outcome);
+        ctx.accounts.market.resolved = true;
+
+        emit!(MarketResolvedEvent {
+            market: ctx.accounts.market.key(),
+            solver: ctx.accounts.oracle.key(),
+            outcome,
+        });
+
+        Ok(())
+    }
+
+    pub fn resolve_user_winnings(ctx: Context<ResolveUserWinnings>) -> Result<()> {
+        require!(
+            ctx.accounts.market.resolved == true,
+            MarketError::MarketNotResolved
+        );
+        let user_yes_amount = ctx.accounts.user_yes_account.amount;
+        let user_no_amount = ctx.accounts.user_no_account.amount;
+        require!(
+            user_yes_amount > 0 || user_no_amount > 0,
+            MarketError::InsufficientFunds
+        );
+
+        // The first thing we are going to do is to burn the user's YES and NO tokens
+        if user_yes_amount > 0 {
+            let cpi_context = CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                token::Burn {
+                    mint: ctx.accounts.yes_mint.to_account_info(),
+                    from: ctx.accounts.user_yes_account.to_account_info(),
+                    authority: ctx.accounts.user.to_account_info(), // the user must sign
+                },
+            );
+
+            token::burn(cpi_context, user_yes_amount)?;
+        }
+
+        if user_no_amount > 0 {
+            let cpi_context = CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                token::Burn {
+                    mint: ctx.accounts.no_mint.to_account_info(),
+                    from: ctx.accounts.user_no_account.to_account_info(),
+                    authority: ctx.accounts.user.to_account_info(), // the user must sign
+                },
+            );
+
+            token::burn(cpi_context, user_no_amount)?;
+        }
+
+        // No we are going to compute how much money the winnings are worth
+        let winning_amount = if ctx.accounts.market.outcome == Some(1) {
+            user_yes_amount
+        } else {
+            user_no_amount
+        };
+
+        // Now we're gonna transfer funds from the vault to the user
+        transfer_outcome(
+            &ctx.accounts.vault,
+            &ctx.accounts.user_usd_account,
+            &ctx.accounts.market,
+            &ctx.accounts.token_program,
+            winning_amount,
+            &[&[
+                b"market",
+                ctx.accounts.market.authority.as_ref(),
+                &ctx.accounts.market.market_number.to_le_bytes(),
+                &ctx.accounts.market.bump.to_le_bytes(),
+            ]],
+        )?;
+
+        // And we are going to edit the pool
+        let pool = &mut ctx.accounts.pool;
+        pool.total_yes_mints -= user_yes_amount;
+        pool.total_no_mints -= user_no_amount;
+        pool.usd_collateral -= winning_amount;
+
+        emit!(ResolveUserWinningsEvent {
+            market: ctx.accounts.market.key(),
+            user: ctx.accounts.user.key(),
+            user_yes_tokens: user_yes_amount,
+            user_no_tokens: user_no_amount,
+            winning_amount,
+        });
+
+        Ok(())
+    }
 }
 
 #[inline(never)]
@@ -1072,6 +1150,15 @@ pub struct MarketResolvedEvent {
     pub outcome: u8,
 }
 
+#[event]
+pub struct ResolveUserWinningsEvent {
+    pub market: Pubkey,
+    pub user: Pubkey,
+    pub user_yes_tokens: u64,
+    pub user_no_tokens: u64,
+    pub winning_amount: u64,
+}
+
 impl Market {
     // Calculate the required space. Remember: 8 bytes for the discriminator.
     pub const LEN: usize = 8 + 32 * 7 + 8 + 1 + 2 + 1;
@@ -1342,6 +1429,43 @@ pub struct ResolveMarket<'info> {
 
     /// CHECK: must match `market.oracle`, enforced by `has_one`
     pub oracle: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ResolveUserWinnings<'info> {
+    #[account(mut, has_one = oracle)]
+    pub market: Account<'info, Market>,
+
+    #[account(mut)]
+    pub pool: Account<'info, MarketPool>,
+
+    #[account(mut)]
+    pub vault: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub yes_mint: Account<'info, Mint>,
+
+    #[account(mut)]
+    pub no_mint: Account<'info, Mint>,
+
+    #[account(mut)]
+    pub lp_share_mint: Account<'info, Mint>,
+
+    #[account(mut)]
+    pub user_usd_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub user_yes_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub user_no_account: Account<'info, TokenAccount>,
+
+    pub oracle: Signer<'info>,
+
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    pub token_program: Program<'info, Token>,
 }
 
 #[error_code]
