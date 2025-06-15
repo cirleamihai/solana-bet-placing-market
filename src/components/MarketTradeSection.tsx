@@ -32,6 +32,13 @@ export interface TransactionDetails {
     tx_slot: number;
 }
 
+export interface UserWinnings {
+    tx_signature: string,
+    market_pubkey: string,
+    user_pubkey: string,
+    tx_slot: string,
+}
+
 interface TradeInfo {
     marketPool: any,
     market: any,
