@@ -140,11 +140,6 @@ pub mod solana_bet_placing_market {
     }
 
     pub fn remove_liquidity(ctx: Context<PoolLiquidity>, shares: u64) -> Result<()> {
-        msg!(
-            "Shares to remove: {}. User remaining balance: {}",
-            shares,
-            ctx.accounts.user_lp_share_account.amount
-        );
         require!(
             shares <= ctx.accounts.user_lp_share_account.amount,
             MarketError::InsufficientFunds
@@ -340,16 +335,17 @@ pub mod solana_bet_placing_market {
         } else {
             // If the market is resolved, we first calculate to see how much
             // he owns from the remaining winning tokens
-            let remaining_lowest_outcome = if ctx.accounts.market.outcome == Some(0) {
+            let remaining_winning_shares = if ctx.accounts.market.outcome == Some(0) {
                 ctx.accounts.pool.no_liquidity
             } else {
                 ctx.accounts.pool.yes_liquidity
             };
 
-            let liquidity_share_price =
-                remaining_lowest_outcome / ctx.accounts.pool.liquidity_value;
-            let user_belonging_money = shares * liquidity_share_price;
-
+            let liquidity_share_price = ((remaining_winning_shares as u128 * SCALE)
+                / ctx.accounts.pool.liquidity_shares as u128)
+                as u64;
+            let user_belonging_money =
+                ((shares as u128) * liquidity_share_price as u128 / SCALE) as u64;
             // We are transferring now out from the vault the shares value
             transfer_outcome(
                 &ctx.accounts.vault,
@@ -366,12 +362,17 @@ pub mod solana_bet_placing_market {
             )?;
 
             // Now we are going to burn the shares
+            let yes_tokens_to_burn = if user_belonging_money > ctx.accounts.pool.yes_liquidity {
+                ctx.accounts.pool.yes_liquidity
+            } else {
+                user_belonging_money
+            };
             burn_mint_tokens(
                 &ctx.accounts.yes_mint,
                 &ctx.accounts.liquidity_yes_tokens_account,
                 &ctx.accounts.market,
                 &ctx.accounts.token_program,
-                user_belonging_money,
+                yes_tokens_to_burn,
                 &[&[
                     b"market",
                     ctx.accounts.market.authority.as_ref(),
@@ -380,12 +381,17 @@ pub mod solana_bet_placing_market {
                 ]],
             )?;
 
+            let no_tokens_to_burn = if user_belonging_money > ctx.accounts.pool.no_liquidity {
+                ctx.accounts.pool.no_liquidity
+            } else {
+                user_belonging_money
+            };
             burn_mint_tokens(
                 &ctx.accounts.no_mint,
                 &ctx.accounts.liquidity_no_tokens_account,
                 &ctx.accounts.market,
                 &ctx.accounts.token_program,
-                user_belonging_money,
+                no_tokens_to_burn,
                 &[&[
                     b"market",
                     ctx.accounts.market.authority.as_ref(),
@@ -398,10 +404,10 @@ pub mod solana_bet_placing_market {
             ctx.accounts.pool.usd_collateral -= user_belonging_money;
             ctx.accounts.pool.liquidity_value -= user_belonging_money;
             ctx.accounts.pool.liquidity_shares -= shares;
-            ctx.accounts.pool.yes_liquidity -= user_belonging_money;
-            ctx.accounts.pool.no_liquidity -= user_belonging_money;
-            ctx.accounts.pool.total_yes_mints -= user_belonging_money;
-            ctx.accounts.pool.total_no_mints -= user_belonging_money;
+            ctx.accounts.pool.yes_liquidity -= yes_tokens_to_burn;
+            ctx.accounts.pool.no_liquidity -= no_tokens_to_burn;
+            ctx.accounts.pool.total_yes_mints -= yes_tokens_to_burn;
+            ctx.accounts.pool.total_no_mints -= no_tokens_to_burn;
 
             emit!(LiquidityRemovedEvent {
                 market: ctx.accounts.market.key(),
