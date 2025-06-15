@@ -8,7 +8,10 @@ import MarketPriceChart, {ChartPoint} from "@/components/MarketPriceChart";
 import MarketTradeSection, {TransactionDetails} from "@/components/MarketTradeSection";
 import {toast} from "sonner";
 import LiquidityPoolSection from "@/components/LiquidityPoolSection";
+import { Button } from "@/components/ui/button";
+import { CheckCircle } from "lucide-react";
 import {DUMMY_PUBKEY} from "@/lib/constants";
+import ResolveMarketModal from "@/components/ResolveMarketModal";
 
 export default function MarketDetails() {
     const {marketPubkey} = useParams();          // ← from route
@@ -22,11 +25,10 @@ export default function MarketDetails() {
     const [volume, setVolume] = useState<number>(0);
     const [reloadMarket, setReloadMarket] = useState(0);
     const [liquidityEmptyModal, setLiquidityEmptyModal] = useState(false);
-    const [wantsToAddLiquidity, setWantsToAddLiquidity] = useState(false);
     const [somethingWrong, setSomethingWrong] = useState<string | null>(null);
     const [poolAccount, setPoolAccount] = useState<any>(null); // Replace 'any' with the actual type if known
     const [chartData, setChartData] = useState<ChartPoint[]>([]);
-    const [submitting, setSubmitting] = useState(false);
+    const [showResolveMarketModal, setShowResolveMarketModal] = useState(false);
     const [yesPrice, setYesPrice] = useState<number>(-1);
     const [noPrice, setNoPrice] = useState<number>(-1);
     const [transactionDetails, setTransactionDetails] = useState<TransactionDetails[]>([]);
@@ -176,10 +178,32 @@ export default function MarketDetails() {
             {/* ── Top summary row ─────────────────────── */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-5">
                 <h1 className="text-2xl md:text-3xl font-semibold leading-snug break-words">
-                    {question}
+                    {question}?
                 </h1>
 
                 <div className="flex items-center gap-8 mr-2">
+                    {wallet?.publicKey.toBase58() === market.oracle.toBase58() && (
+                        <>
+                            <Button
+                                onClick={() => setShowResolveMarketModal(true)}
+                                className="bg-green-600 hover:bg-green-700 cursor-pointer text-white flex items-center gap-2 px-5 py-3 shadow-md hover:shadow-lg transition rounded-xl"
+                            >
+                                <div className="bg-white/20 backdrop-blur-sm rounded-full p-1 shadow-inner">
+                                    <CheckCircle className="h-5 w-5 text-white" />
+                                </div>
+                                <span className="text-sm font-semibold tracking-wide">Resolve Market</span>
+                            </Button>
+
+                            {/* Resolve Dialog */}
+                            {showResolveMarketModal && (
+                                <ResolveMarketModal
+                                    onClose={() => setShowResolveMarketModal(false)}
+                                    marketTitle={question}
+                                />
+                            )}
+                        </>
+                    )}
+
                     {createdAt &&
                         <span className="text-md text-slate-300">
                         Created at &nbsp; <span

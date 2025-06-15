@@ -53,7 +53,7 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
                 initial={{opacity: 0}}
                 animate={{opacity: 1}}
                 exit={{opacity: 0}}
-                transition={{duration: 0.25}}
+                transition={{duration: 0.15}}
                 onClick={handleBackdropClick}
                 className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
             >

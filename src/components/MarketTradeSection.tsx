@@ -358,7 +358,7 @@ export default function MarketTradeSection({
 
                     <div className="flex justify-between items-center mb-3">
                         <button
-                            className={`flex-1 py-3 rounded-md text-center font-semibold text-lg mr-2 cursor-pointer ${
+                            className={`flex-1 py-3 rounded-md text-center font-semibold text-lg mr-2 cursor-pointer  ${
                                 selectedOutcome === "yes"
                                     ? "bg-green-500 text-white"
                                     : "bg-gray-700 text-gray-400"
@@ -509,7 +509,7 @@ export default function MarketTradeSection({
             {/* ── History / Order Book ─────────────────── */}
             <div className="flex flex-col gap-2">
                 <div className="rounded-xl bg-[#1f2937] text-white p-6 shadow-md">
-                    <h3 className="text-xl font-semibold mb-4">Recent Trades</h3>
+                    <h3 className="text-xl font-semibold mb-4">Recent Market Activity</h3>
                     {transactionDetails.length > 0 ? (
                         <ul className="custom-scroll space-y-1 h-[160px] overflow-y-auto pr-1">
                             <AnimatePresence initial={false}>
