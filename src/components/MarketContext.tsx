@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 type MarketContextProps = {
     userBalance: number;
     setUserBalance: React.Dispatch<React.SetStateAction<number>>;
+    newMarket: number,
+    setNewMarket: React.Dispatch<React.SetStateAction<number>>;
 };
 
 // 2. Create the context with default (unsafe) values
@@ -12,9 +14,10 @@ const MarketContext = createContext<MarketContextProps | undefined>(undefined);
 // 3. Create a provider component
 export const MarketProvider = ({ children }: { children: ReactNode }) => {
     const [userBalance, setUserBalance] = useState<number>(0);
+    const [newMarket, setNewMarket] = useState<number>(0);
 
     return (
-        <MarketContext.Provider value={{ userBalance, setUserBalance }}>
+        <MarketContext.Provider value={{ userBalance, setUserBalance, newMarket, setNewMarket }}>
             {children}
         </MarketContext.Provider>
     );

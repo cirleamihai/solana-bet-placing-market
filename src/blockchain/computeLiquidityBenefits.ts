@@ -64,8 +64,8 @@ export const getRemoveLiquidityPotentialBenefits = (
 
         return {
             moneyToReceive: sharesToRemove * winningLiquidity / liquidityShares,
-            yesShares: winningOutcome === "yes" ? sharesToRemove : 0,
-            noShares: winningOutcome === "no" ? sharesToRemove : 0
+            yesShares: 0,
+            noShares: 0
         }
     }
 

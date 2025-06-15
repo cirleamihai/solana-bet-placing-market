@@ -27,6 +27,7 @@ import BN from "bn.js";
 import {supabase} from "@/lib/supabase";
 import {AnchorProvider} from "@coral-xyz/anchor";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
+import {useMarketContext} from "@/components/MarketContext";
 
 interface Props {
     open: boolean;
@@ -39,6 +40,7 @@ export default function CreateMarketModal({open, onClose}: Props) {
     const [selectedTopic, setSelectedTopic] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const {program, wallet, connection} = useAnchorProgram();
+    const {setNewMarket} = useMarketContext();
 
     const handleSubmit = async () => {
         if (!program || !wallet?.publicKey || !marketName || !selectedTopic) {
@@ -132,6 +134,7 @@ export default function CreateMarketModal({open, onClose}: Props) {
 
             toast.success("Market created successfully!");
             onModalClose();
+            setNewMarket((prev) => prev + 1); // Increment the market count in context
         } catch (e) {
             console.error(e);
             toast.error("Failed to create market");

@@ -8,6 +8,7 @@ import {useDebounce} from "@/lib/useDebounce";
 import {useParams} from "react-router-dom";
 import {PublicKey} from "@solana/web3.js";
 import {listenToMarketChanges} from "@/blockchain/heliusEventListener";
+import {useMarketContext} from "@/components/MarketContext";
 
 interface MarketGridProps {
     searchQuery: string;
@@ -22,6 +23,7 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
     const [loading, setLoading] = useState(true);
     const {program} = useAnchorProgram();
     const {market_category} = useParams();
+    const {newMarket} = useMarketContext();
 
     listenToMarketChanges(
         setMarketStatusChanged,
@@ -99,7 +101,7 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
         };
 
         fetchMarkets();
-    }, [debouncedMarketName, program, market_category, marketStatusChanged]);
+    }, [debouncedMarketName, program, market_category, marketStatusChanged, newMarket]);
 
     if (loading) {
         return (
