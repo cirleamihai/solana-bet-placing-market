@@ -123,6 +123,7 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
                 const yes = Number(marketPool?.yesLiquidity ?? 0);  // We are going to compute no based on yes
                 const no = Number(marketPool?.noLiquidity ?? 0);
                 const yesAndNoSummedUp = yes + no;
+                console.log(Number(account.marketVolume))
                 const totalMarketVolume = Number(account.marketVolume) / 10 ** 9;
                 const yesPrice = yesAndNoSummedUp ? Math.floor((no / yesAndNoSummedUp) * 100) : 50;
 
@@ -132,7 +133,7 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
                         marketPubkey={keyStr}
                         question={metadata[keyStr] || `Market #${i + 1}`}
                         yesProbability={yesPrice}
-                        volume={`$${(totalMarketVolume / 10 ** 9).toLocaleString()}`}
+                        volume={`$${(totalMarketVolume).toLocaleString("en-US", )}`}
                     />
                 );
             })}

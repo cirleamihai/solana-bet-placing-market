@@ -62,7 +62,6 @@ export default function MarketTradeSection({
                                                unifiedHandlerRef
                                            }: TradeInfo) {
     const {wallet, program, connection} = useAnchorProgram(); // Assuming you have a hook to get the wallet context
-    const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">("yes");
     const [_maxAmountReached, setMaxAmountReached] = useState(false);
     const [amount, setAmount] = useState(0);
     const [submitting, setSubmitting] = useState(false);
@@ -75,6 +74,10 @@ export default function MarketTradeSection({
     const [profitMade, setProfitMade] = useState(0);
     const {userBalance} = useMarketContext();
     const [parser, _setParser] = useState(new EventParser(program.programId, program.coder))
+
+    const queryParams = new URLSearchParams(window.location.search);
+    const buy_outcome = queryParams.get("buy") as "yes" | "no" | null;
+    const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">( buy_outcome ?? "yes");
 
     // Convert BN to numbers (if needed)
     // @ts-ignore
