@@ -324,9 +324,9 @@ export default function MarketTradeSection({
 
             return {
                 // @ts-ignore
-                yesShares: yesTokenAccount ? Number(yesTokenAccount.value.amount) / 10 ** 9 : 0, // Convert from lamports to shares
+                yesShares: yesTokenAccount ? Number(yesTokenAccount.amount) / 10 ** 9 : 0, // Convert from lamports to shares
                 // @ts-ignore
-                noShares: yesTokenAccount ? Number(noTokenAccount.value.amount) / 10 ** 9 : 0, // Convert from lamports to shares
+                noShares: yesTokenAccount ? Number(noTokenAccount.amount) / 10 ** 9 : 0, // Convert from lamports to shares
             };
         } catch (error) {
             toast.error("Failed to fetch owned shares:");

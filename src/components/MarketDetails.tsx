@@ -8,8 +8,8 @@ import MarketPriceChart, {ChartPoint} from "@/components/MarketPriceChart";
 import MarketTradeSection, {TransactionDetails} from "@/components/MarketTradeSection";
 import {toast} from "sonner";
 import LiquidityPoolSection from "@/components/LiquidityPoolSection";
-import { Button } from "@/components/ui/button";
-import { CheckCircle } from "lucide-react";
+import {Button} from "@/components/ui/button";
+import {CheckCircle} from "lucide-react";
 import {DUMMY_PUBKEY} from "@/lib/constants";
 import ResolveMarketModal from "@/components/ResolveMarketModal";
 
@@ -177,22 +177,34 @@ export default function MarketDetails() {
         <main className="w-[85%] mx-auto mt-10 px-4 md:px-0 text-white">
             {/* ── Top summary row ─────────────────────── */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-5">
-                <h1 className="text-2xl md:text-3xl font-semibold leading-snug break-words">
+                <h1 className="text-2xl md:text-3xl font-semibold leading-snug break-words flex-[1_1_0%] min-w-0">
                     {question}
                 </h1>
 
                 <div className="flex items-center gap-8 mr-2">
                     {wallet?.publicKey.toBase58() === market.oracle.toBase58() && (
                         <>
-                            <Button
-                                onClick={() => setShowResolveMarketModal(true)}
-                                className="bg-green-600 hover:bg-green-700 cursor-pointer text-white flex items-center gap-2 px-5 py-3 shadow-md hover:shadow-lg transition rounded-xl"
-                            >
-                                <div className="bg-white/20 backdrop-blur-sm rounded-full p-1 shadow-inner">
-                                    <CheckCircle className="h-5 w-5 text-white" />
+                            {!market.resolved ? (
+                                <Button
+                                    onClick={() => setShowResolveMarketModal(true)}
+                                    className="bg-sky-600 hover:bg-sky-700 cursor-pointer text-white flex items-center gap-2 px-5 py-3 shadow-md hover:shadow-lg transition rounded-xl"
+                                >
+                                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-1 shadow-inner">
+                                        <CheckCircle className="h-5 w-5 text-white"/>
+                                    </div>
+                                    <span className="text-sm font-semibold tracking-wide">Resolve Market</span>
+                                </Button>
+                            ) : (
+                                <div
+                                    className="bg-green-600 select-none text-white flex items-center gap-2 px-5 py-1.5 shadow-md hover:shadow-lg transition rounded-xl"
+                                >
+                                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-1 shadow-inner">
+                                        <CheckCircle className="h-4 w-4 text-white"/>
+                                    </div>
+                                    <span className="text-sm font-semibold tracking-wide">Market Resolved</span>
                                 </div>
-                                <span className="text-sm font-semibold tracking-wide">Resolve Market</span>
-                            </Button>
+
+                            )}
 
                             {/* Resolve Dialog */}
                             {showResolveMarketModal && (
