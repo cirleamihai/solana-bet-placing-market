@@ -159,7 +159,7 @@ export default function TransactionDetailModal({transaction, onClose}: Props) {
                             title="Received Outcome Shares"
                             value={`${transaction.received_outcome_shares.toLocaleString()} ${transaction.received_outcome.toUpperCase()}`}
                             className="col-span-2"
-                            textColor={transaction.received_outcome.toLocaleLowerCase().includes("Yes") ? "text-green-400" : "text-red-400"}
+                            textColor={transaction.received_outcome.toLocaleLowerCase().includes("yes") ? "text-green-400" : "text-red-400"}
                         />
                     </div>
                 </motion.div>

@@ -5,7 +5,7 @@ import {supabase} from "@/lib/supabase";
 import {PublicKey} from "@solana/web3.js";
 import {GridLoader} from "react-spinners";
 import MarketPriceChart, {ChartPoint} from "@/components/MarketPriceChart";
-import MarketTradeSection, {TransactionDetails} from "@/components/MarketTradeSection";
+import MarketTradeSection, {TransactionDetails, UserWinnings} from "@/components/MarketTradeSection";
 import {toast} from "sonner";
 import LiquidityPoolSection from "@/components/LiquidityPoolSection";
 import {Button} from "@/components/ui/button";
@@ -34,6 +34,8 @@ export default function MarketDetails() {
     const [yesPrice, setYesPrice] = useState<number>(-1);
     const [noPrice, setNoPrice] = useState<number>(-1);
     const [transactionDetails, setTransactionDetails] = useState<TransactionDetails[]>([]);
+    const [usersWinnings, setUsersWinnings] = useState<UserWinnings[]>([]); // Replace 'any' with the actual type if known
+    const [walletWinnings, setWalletWinnings] = useState<UserWinnings | null>(null);
     const [reloadLiquidityPool, setReloadLiquidityPool] = useState(0);
     const lastEventSlot = useRef<number>(0);
     const dataExists = useRef(false);
@@ -119,33 +121,95 @@ export default function MarketDetails() {
     }, [wallet?.publicKey]);
 
     useEffect(() => {
-        const fetchDbMarketData = async () => {
-            if (!marketPubkey) return;
+        const fetchAllDbCalls = async () => {
+            const fetchDbBettingMarketData = async () => {
+                if (!marketPubkey) return;
 
-            let {data, error} = await supabase
-                .from("bets")
-                .select()
-                .eq("market_pubkey", marketPubkey)
-                .order("tx_slot", {ascending: false})
+                let {data, error} = await supabase
+                    .from("bets")
+                    .select()
+                    .eq("market_pubkey", marketPubkey)
+                    .order("tx_slot", {ascending: false})
 
-            if (error) {
-                console.log("Error fetching market data:", error);
-                toast.error("Error fetching market data.");
-                return
-            }
-            data = data || [];
-            setTransactionDetails(prev => {
-                const mergedTransaction: TransactionDetails[] = [...prev, ...data];
+                if (error) {
+                    console.log("Error fetching market data:", error);
+                    toast.error("Error fetching market data.");
+                    return
+                }
+                data = data || [];
+                setTransactionDetails(prev => {
+                    const mergedTransaction: TransactionDetails[] = [...prev, ...data];
 
-                return Array.from(
-                    new Map(mergedTransaction.map(obj => [obj.tx_signature, obj])).values()
-                ).sort((a, b) => {
-                    const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-                    return timeDiff !== 0 ? timeDiff : b.tx_slot - a.tx_slot;
+                    return Array.from(
+                        new Map(mergedTransaction.map(obj => [obj.tx_signature, obj])).values()
+                    ).sort((a, b) => {
+                        const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                        return timeDiff !== 0 ? timeDiff : b.tx_slot - a.tx_slot;
+                    });
                 });
-            });
+            }
+
+            const fetchDbUsersWinningMarketData = async () => {
+                if (!marketPubkey) return;
+
+                let {data, error} = await supabase
+                    .from("user_winnings")
+                    .select()
+                    .eq("market_pubkey", marketPubkey)
+                    .order("tx_slot", {ascending: false})
+                    .limit(25);
+
+                if (error) {
+                    console.log("Error fetching user winning market data:", error);
+                    toast.error("Error fetching user winning market data.");
+                    return;
+                }
+                data = data || [];
+                setUsersWinnings(prev => {
+                    const mergedWinnings: any[] = [...prev, ...data];
+
+                    return Array.from(
+                        new Map(mergedWinnings.map(obj => [obj.tx_signature, obj])).values()
+                    ).sort((a, b) => {
+                        const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                        return timeDiff !== 0 ? timeDiff : b.tx_slot - a.tx_slot;
+                    });
+                })
+
+            }
+
+            const fetchDbWalletWinningsMarketData = async () => {
+                if (!marketPubkey || !wallet?.publicKey) return;
+
+                let {data, error} = await supabase
+                    .from("user_winnings")
+                    .select()
+                    .eq("market_pubkey", marketPubkey)
+                    .eq("user_pubkey", wallet.publicKey)
+                    .order("tx_slot", {ascending: false})
+                    .limit(3);
+
+                if (error) {
+                    console.log("Error fetching wallet winnings market data:", error);
+                    toast.error("Error fetching wallet winnings market data.");
+                    return;
+                }
+
+                data = (data && data.length > 0) ? data[0] : null;
+                if (data) {
+                    // @ts-ignore
+                    setWalletWinnings(data);
+                }
+            }
+
+            await Promise.allSettled([
+                fetchDbBettingMarketData(),
+                fetchDbUsersWinningMarketData(),
+                fetchDbWalletWinningsMarketData()
+            ]);
         }
-        fetchDbMarketData();
+
+        fetchAllDbCalls().then();
     }, [reloadMarket]);
 
     useEffect(() => {
@@ -268,6 +332,10 @@ export default function MarketDetails() {
                     lastEventSlot={lastEventSlot}
                     liquidityEmptyModal={liquidityEmptyModal}
                     unifiedHandlerRef={unifiedHandlerRef}
+                    usersWinnings={usersWinnings}
+                    setUsersWinnings={setUsersWinnings}
+                    walletWinnings={walletWinnings}
+                    setWalletWinnings={setWalletWinnings}
                 />
             </div>
 

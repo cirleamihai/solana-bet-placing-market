@@ -36,7 +36,12 @@ export interface UserWinnings {
     tx_signature: string,
     market_pubkey: string,
     user_pubkey: string,
-    tx_slot: string,
+    tx_slot: number,
+    created_at: string,
+    money_invested: number,
+    user_winnings: number
+    total_owned_yes_tokens: number,
+    total_owned_no_tokens: number
 }
 
 interface TradeInfo {
@@ -52,6 +57,10 @@ interface TradeInfo {
     lastEventSlot: React.RefObject<number>,
     liquidityEmptyModal: boolean,
     unifiedHandlerRef: React.RefObject<Record<string, (args: { transactionData: any; txSignature: string }) => void>>
+    walletWinnings: UserWinnings | null,
+    setWalletWinnings: Dispatch<React.SetStateAction<UserWinnings | null>>
+    usersWinnings: UserWinnings[],
+    setUsersWinnings: Dispatch<React.SetStateAction<UserWinnings[]>>
 }
 
 export default function MarketTradeSection({
@@ -66,7 +75,11 @@ export default function MarketTradeSection({
                                                setNoPrice,
                                                lastEventSlot,
                                                liquidityEmptyModal,
-                                               unifiedHandlerRef
+                                               unifiedHandlerRef,
+                                               walletWinnings,
+                                               setWalletWinnings,
+                                               usersWinnings,
+                                               setUsersWinnings
                                            }: TradeInfo) {
     const {wallet, program, connection} = useAnchorProgram(); // Assuming you have a hook to get the wallet context
     const [_maxAmountReached, setMaxAmountReached] = useState(false);
@@ -79,12 +92,13 @@ export default function MarketTradeSection({
     const [noRemainingTokens, setNoRemainingTokens] = useState(0);
     const [moneyInvested, setMoneyInvested] = useState(0);
     const [profitMade, setProfitMade] = useState(0);
+    const [combinedRecentMarketActivity, setCombinedRecentMarketActivity] = useState<any[]>([]);
     const {userBalance} = useMarketContext();
     const [parser, _setParser] = useState(new EventParser(program.programId, program.coder))
 
     const queryParams = new URLSearchParams(window.location.search);
     const buy_outcome = queryParams.get("buy") as "yes" | "no" | null;
-    const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">( buy_outcome ?? "yes");
+    const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">(buy_outcome ?? "yes");
 
     // Convert BN to numbers (if needed)
     // @ts-ignore
@@ -160,6 +174,61 @@ export default function MarketTradeSection({
 
         }, []);
 
+    const handleNewWinningsBlockchainEvent = useCallback(
+        async (event: { txSignature: string, transactionData: any }) => {
+            // We are gonna get the blockchain transaction
+            const {transactionSlot, createdAt, userKey} = await getTransactionDetails(connection, event);
+            if (!transactionSlot || !createdAt || !userKey) {
+                console.error("Failed to get transaction details. Tx: ", event.txSignature);
+                return;
+            }
+
+            // Then we need to query the supabase for the total investment of the user
+            const {data, error} = await supabase
+                .from("bets")
+                .select("money_spent.sum()", {count: "exact"})
+                .eq("user_pubkey", userKey)
+                .eq("market_pubkey", marketKey.toBase58())
+
+            if (error) {
+                console.error("Error fetching user bets:", error);
+                return;
+            } else if (!data || data.length === 0) {
+                console.error(`User ${userKey} has no bets recorded so far.`)
+            }
+            const moneyInvested = data[0].sum ? Number(data[0].sum) : 0;
+
+            console.log('Transaction details:', event.transactionData);
+            const winnings: UserWinnings = {
+                tx_signature: event.txSignature,
+                market_pubkey: marketKey.toBase58(),
+                user_pubkey: userKey,
+                tx_slot: transactionSlot,
+                created_at: createdAt,
+                money_invested: moneyInvested, // Convert from lamports to USD
+                user_winnings: Number(event.transactionData.winningAmount) / 10 ** 9 - moneyInvested, // Convert from lamports to USD
+                total_owned_yes_tokens: Number(event.transactionData.userYesTokens) / 10 ** 9, // Convert from lamports to shares
+                total_owned_no_tokens: Number(event.transactionData.userNoTokens) / 10 ** 9, // Convert from lamports to shares
+            }
+
+            if (userKey == wallet?.publicKey?.toBase58()) {
+                setWalletWinnings(winnings);
+            }
+
+            setUsersWinnings((prev) => {
+                return [winnings, ...prev].sort(
+                    (a, b) => {
+                        const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                        if (timeDiff !== 0) return timeDiff;
+
+                        // Fallback: sort by slot (descending)
+                        return b.tx_slot - a.tx_slot;
+                    }
+                )
+            })
+            setReloadMarket((prev: number) => prev + 1);
+        }, []);
+
     const withdrawUserWinnings = async () => {
         if (!wallet?.publicKey || !marketPool || liquidityEmptyModal) return;
 
@@ -204,7 +273,7 @@ export default function MarketTradeSection({
             const provider = program.provider as AnchorProvider;
             const _sig = await provider.sendAndConfirm(tx);
 
-            const {transactionTime, tx_slot} = await confirmTransaction(
+            const {transactionTime, transaction, tx_slot} = await confirmTransaction(
                 connection,
                 _sig,
                 parser,
@@ -217,8 +286,10 @@ export default function MarketTradeSection({
                     market_pubkey: marketKey.toBase58(),
                     user_pubkey: wallet.publicKey.toBase58(),
                     money_invested: moneyInvested,
-                    user_winnings: profitMade,
+                    user_winnings: Number(transaction.winningAmount) / 10 ** 9 - moneyInvested,
                     created_at: transactionTime,
+                    total_owned_yes_tokens: yesSharesOwned,
+                    total_owned_no_tokens: noSharesOwned,
                     tx_slot: tx_slot,
                 }])
 
@@ -244,7 +315,30 @@ export default function MarketTradeSection({
                 txSignature
             }).then();
         }
+        unifiedHandlerRef.current["resolveUserWinningsEvent"] = ({transactionData, txSignature}) => {
+            handleNewWinningsBlockchainEvent({
+                transactionData,
+                txSignature
+            }).then();
+        }
     }, [])
+
+    // Combine the Winnings with the recent pool transactions
+    useEffect(() => {
+        if (!transactionDetails && !usersWinnings) return;
+        setCombinedRecentMarketActivity(prev => {
+            // IMPORTANT: Ensure every element from here contains a unique tx_signature
+            const mergedActivity = [...prev, ...transactionDetails, ...usersWinnings];
+
+            return Array.from(
+                new Map(mergedActivity.map(obj => [obj.tx_signature, obj])).values()
+            ).sort((a, b) => {
+                const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                return timeDiff !== 0 ? timeDiff : b.tx_slot - a.tx_slot;
+            });
+        })
+
+    }, [transactionDetails, usersWinnings]);
 
     // @ts-ignore
     let MAX_AMOUNT = wallet?.publicKey ? userBalance : CONST_MAX_AMOUNT;
@@ -687,10 +781,10 @@ export default function MarketTradeSection({
             <div className="flex flex-col gap-2">
                 <div className="rounded-xl bg-[#1f2937] text-white p-6 shadow-md">
                     <h3 className="text-xl font-semibold mb-4">Recent Market Activity</h3>
-                    {transactionDetails.length > 0 ? (
+                    {combinedRecentMarketActivity.length > 0 ? (
                         <ul className="custom-scroll space-y-1 h-[160px] overflow-y-auto pr-1">
                             <AnimatePresence initial={false}>
-                                {transactionDetails.slice(0, 25).map((trade, _i) => (
+                                {combinedRecentMarketActivity.slice(0, 25).map((trade, _i) => (
                                     <motion.li
                                         key={trade.tx_signature} // ✅ Use unique key
                                         initial={{opacity: 0, y: 10}}
@@ -701,7 +795,7 @@ export default function MarketTradeSection({
                                     >
                                         {/* Timestamp */}
                                         <div
-                                            className="text-xs text-blue-400 italic min-w-[110px] text-left pr-2 leading-none">
+                                            className="text-xs text-blue-400 italic min-w-[105px] max-w-[105px] text-left pr-2 leading-none">
                                             {new Date(trade.created_at).toLocaleString("en-US", {
                                                 month: "short",
                                                 day: "numeric",
@@ -713,38 +807,81 @@ export default function MarketTradeSection({
                                         </div>
 
                                         {/* Divider */}
-                                        <div
-                                            className="ml-auto h-[20px] w-[1px] bg-slate-600 mx-2 opacity-50 rounded"></div>
+                                        <div className="ml-auto h-[20px] w-[1px] bg-slate-600 mx-2 opacity-50 rounded"/>
 
                                         {/* Details */}
-                                        <div className="flex justify-between items-center flex-1 font-mono">
-                                            <div className="flex gap-2">
-                                            <span
-                                                className="text-slate-300"
-                                                title={trade.user_pubkey}
-                                            >
-                                              User {trade.user_pubkey.slice(0, 5)}...{trade.user_pubkey.slice(-4)}
-                                            </span>
+                                        {trade.purchased_outcome && (
+                                            <div className="flex justify-between items-center flex-1 font-mono">
+                                                <div className="flex gap-2">
+                                                    <span
+                                                        className="text-slate-300"
+                                                        title={trade.user_pubkey}
+                                                    >
+                                                      User {trade.user_pubkey.slice(0, 5)}...{trade.user_pubkey.slice(-4)}
+                                                    </span>
 
-                                                <div
-                                                    className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
-                                                <span className="min-w-[105px] inline-block font-mono text-slate-300">
-                                                    +{trade.amount_purchased.toLocaleString("en-US", {maximumFractionDigits: 2})}{" "}
-                                                    {trade.purchased_outcome[0].toUpperCase() + trade.purchased_outcome.slice(1)}
-                                            </span>
-                                                <div
-                                                    className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"></div>
-                                                <span className="text-slate-300">
-                                              ≈${(trade.money_spent / trade.amount_purchased).toFixed(2)}/ share
-                                            </span>
+                                                    <div
+                                                        className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"/>
+                                                    <span
+                                                        className="min-w-[105px] inline-block font-mono text-slate-300">
+                                                            +{trade.amount_purchased.toLocaleString("en-US", {maximumFractionDigits: 2})}{" "}
+                                                        {trade.purchased_outcome[0].toUpperCase() + trade.purchased_outcome.slice(1)}
+                                                    </span>
+                                                    <div
+                                                        className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"/>
+                                                    <span className="text-slate-300">
+                                                      ≈${(trade.money_spent / trade.amount_purchased).toFixed(2)}/ share
+                                                    </span>
+                                                </div>
+                                                <span className="text-slate-400 font-bold">
+                                                      ${trade.money_spent.toLocaleString("en-US", {
+                                                    maximumFractionDigits: 2,
+                                                    minimumFractionDigits: 2
+                                                })}
+                                                    </span>
                                             </div>
-                                            <span className="text-slate-400 font-bold">
-                                          ${trade.money_spent.toLocaleString("en-US", {
-                                                maximumFractionDigits: 2,
-                                                minimumFractionDigits: 2
-                                            })}
-                                        </span>
-                                        </div>
+                                        )}
+                                        {trade.user_winnings && (
+                                            <div
+                                                className={`flex justify-between items-center flex-1 font-mono ${trade.user_winnings > 0 ? "text-green-400" : "text-red-400"}`}>
+                                                <div className="flex gap-2">
+                                                    <span
+                                                        title={trade.user_pubkey}
+                                                    >
+                                                      User {trade.user_pubkey.slice(0, 5)}...{trade.user_pubkey.slice(-4)}
+                                                    </span>
+                                                    <div
+                                                        className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"/>
+                                                    <span
+                                                        className="min-w-[105px] inline-block font-mono">
+                                                            -{market.outcome === 0 ? trade.total_owned_no_tokens.toLocaleString("en-US", {
+                                                        maximumFractionDigits: 2,
+                                                        minimumFractionDigits: 2
+                                                    }) : trade.total_owned_yes_tokens.toLocaleString("en-US", {
+                                                        maximumFractionDigits: 2,
+                                                        minimumFractionDigits: 2
+                                                    })}{" "}
+                                                        {market.outcome === 0 ? "No" : "Yes"}
+                                                    </span>
+                                                    <div
+                                                        className="ml-auto h-[20px] w-[1px] bg-slate-600 opacity-50 rounded"/>
+                                                    <span
+                                                        className="min-w-[105px] inline-block font-mono ">
+                                                            Invested ${trade.money_invested.toLocaleString("en-US", {
+                                                        maximumFractionDigits: 2,
+                                                        minimumFractionDigits: 2
+                                                    })}
+                                                    </span>
+                                                </div>
+                                                <span
+                                                    className={`font-bold ${trade.user_winnings > 0 ? "text-green-400" : "text-red-400"}`}>
+                                                      {trade.user_winnings > 0 ? "Profit" : "Lost"} ${trade.user_winnings.toLocaleString("en-US", {
+                                                    maximumFractionDigits: 2,
+                                                    minimumFractionDigits: 2
+                                                })}
+                                                    </span>
+                                            </div>
+                                        )}
                                     </motion.li>
                                 ))}
                             </AnimatePresence>
@@ -767,7 +904,6 @@ export default function MarketTradeSection({
                                 </div>
                                 <div
                                     className="text-xl font-semibold text-purple-400 mt-3">${moneyInvested.toLocaleString("en-US", {
-                                    minimumFractionDigits: 3,
                                     maximumFractionDigits: 3
                                 })}</div>
                             </div>
@@ -778,13 +914,28 @@ export default function MarketTradeSection({
                                 </div>
                                 <div
                                     className="text-xl font-semibold text-sky-300 flex flex-col gap-2">
-                                    <span className="text-green-400">
-                                      {yesSharesOwned ? yesSharesOwned.toLocaleString() : "0"} Yes
-                                    </span>
-                                    <div className={"border-b-2 border-slate-600"}></div>
-                                    <span
-                                        className="text-red-400">{noSharesOwned ? noSharesOwned.toLocaleString() : "0"} No
-                                    </span>
+                                    {!walletWinnings && (
+                                        <div>
+                                            <span className="text-green-400">
+                                              {yesSharesOwned ? yesSharesOwned.toLocaleString() : "0"} Yes
+                                            </span>
+                                            <div className={"border-b-2 border-slate-600"}></div>
+                                            <span
+                                                className="text-red-400">{noSharesOwned ? noSharesOwned.toLocaleString() : "0"} No
+                                            </span>
+                                        </div>
+                                    )}
+                                    {walletWinnings && (
+                                        <div>
+                                            <span className="text-green-400">
+                                              {walletWinnings.total_owned_yes_tokens ? walletWinnings.total_owned_yes_tokens.toLocaleString() : "0"} Yes
+                                            </span>
+                                            <div className={"border-b-2 border-slate-600"}></div>
+                                            <span
+                                                className="text-red-400">{walletWinnings.total_owned_no_tokens ? walletWinnings.total_owned_no_tokens.toLocaleString() : "0"} No
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -792,11 +943,30 @@ export default function MarketTradeSection({
                                 <div className="text-sm uppercase tracking-wide text-slate-400 mb-1">
                                     Profit / Loss
                                 </div>
-                                <div className={`text-xl font-semibold mt-3 ${profitMade >= 0 ?
-                                    "text-green-400" : "text-red-400"}`}>${profitMade.toLocaleString("en-US", {
-                                    minimumFractionDigits: 3,
-                                    maximumFractionDigits: 3
-                                })}</div>
+                                {!market.resolved && (
+                                    <div className={`text-xl font-semibold mt-3 ${profitMade >= 0 ?
+                                        "text-green-400" : "text-red-400"}`}>${profitMade.toLocaleString("en-US", {
+                                        maximumFractionDigits: 3
+                                    })}</div>
+                                )}
+                                {market.resolved && walletWinnings && walletWinnings.user_winnings && (
+                                    <div className={`text-xl font-semibold mt-3 ${walletWinnings.user_winnings >= 0 ?
+                                        "text-green-400" : "text-red-400"}`}>${walletWinnings.user_winnings.toLocaleString("en-US", {
+
+                                        maximumFractionDigits: 3
+                                    })}</div>
+                                )}
+                                {market.resolved && !walletWinnings && (
+                                    <div
+                                        className={`text-xl font-semibold mt-3 ${(market.outcome === 0 ? noSharesOwned - moneyInvested : yesSharesOwned - moneyInvested) >= 0 ?
+                                            "text-green-400" : "text-red-400"}`}>
+                                        ${(market.outcome === 0 ?
+                                        noSharesOwned - moneyInvested :
+                                        yesSharesOwned - moneyInvested).toLocaleString("en-US", {
+                                        maximumFractionDigits: 3
+                                    })}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
