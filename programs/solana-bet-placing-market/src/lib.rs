@@ -150,10 +150,6 @@ pub mod solana_bet_placing_market {
             MarketError::InsufficientFunds
         );
         require!(shares > 0, MarketError::Zero);
-        require!(
-            ctx.accounts.market.resolved == false,
-            MarketError::MarketResolved
-        );
 
         // The first thing we are going to do is to burn the user's shares
         // and remove them from the pool

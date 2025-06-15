@@ -178,7 +178,7 @@ export default function MarketDetails() {
             {/* ── Top summary row ─────────────────────── */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-5">
                 <h1 className="text-2xl md:text-3xl font-semibold leading-snug break-words">
-                    {question}?
+                    {question}
                 </h1>
 
                 <div className="flex items-center gap-8 mr-2">
@@ -199,6 +199,9 @@ export default function MarketDetails() {
                                 <ResolveMarketModal
                                     onClose={() => setShowResolveMarketModal(false)}
                                     marketTitle={question}
+                                    market={market}
+                                    marketKey={marketPubkey ? new PublicKey(marketPubkey) : DUMMY_PUBKEY}
+                                    setReloadMarket={setReloadMarket}
                                 />
                             )}
                         </>

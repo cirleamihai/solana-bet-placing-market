@@ -705,6 +705,74 @@
           "type": "u8"
         }
       ]
+    },
+    {
+      "name": "resolve_user_winnings",
+      "discriminator": [
+        240,
+        79,
+        69,
+        173,
+        20,
+        82,
+        149,
+        212
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "yes_mint",
+          "writable": true
+        },
+        {
+          "name": "no_mint",
+          "writable": true
+        },
+        {
+          "name": "lp_share_mint",
+          "writable": true
+        },
+        {
+          "name": "user_usd_account",
+          "writable": true
+        },
+        {
+          "name": "user_yes_account",
+          "writable": true
+        },
+        {
+          "name": "user_no_account",
+          "writable": true
+        },
+        {
+          "name": "oracle",
+          "signer": true,
+          "relations": [
+            "market"
+          ]
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -799,6 +867,19 @@
         49,
         252,
         104
+      ]
+    },
+    {
+      "name": "ResolveUserWinningsEvent",
+      "discriminator": [
+        153,
+        32,
+        226,
+        187,
+        155,
+        230,
+        81,
+        7
       ]
     }
   ],
@@ -1118,6 +1199,34 @@
           },
           {
             "name": "pool_remaining_no_tokens",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ResolveUserWinningsEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "user_yes_tokens",
+            "type": "u64"
+          },
+          {
+            "name": "user_no_tokens",
+            "type": "u64"
+          },
+          {
+            "name": "winning_amount",
             "type": "u64"
           }
         ]

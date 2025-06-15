@@ -318,6 +318,7 @@ export default function MarketTradeSection({
             };
         } catch (error) {
             toast.error("Failed to fetch owned shares:");
+            console.log(error)
             return {yesShares: 0, noShares: 0};
         }
     }
