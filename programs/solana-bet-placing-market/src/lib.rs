@@ -1429,7 +1429,7 @@ pub struct ResolveMarket<'info> {
 
 #[derive(Accounts)]
 pub struct ResolveUserWinnings<'info> {
-    #[account(mut, has_one = oracle)]
+    #[account(mut)]
     pub market: Account<'info, Market>,
 
     #[account(mut)]
@@ -1455,8 +1455,6 @@ pub struct ResolveUserWinnings<'info> {
 
     #[account(mut)]
     pub user_no_account: Account<'info, TokenAccount>,
-
-    pub oracle: Signer<'info>,
 
     #[account(mut)]
     pub user: Signer<'info>,

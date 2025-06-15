@@ -756,13 +756,6 @@
           "writable": true
         },
         {
-          "name": "oracle",
-          "signer": true,
-          "relations": [
-            "market"
-          ]
-        },
-        {
           "name": "user",
           "writable": true,
           "signer": true
