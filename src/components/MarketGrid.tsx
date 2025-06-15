@@ -115,7 +115,7 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
         <EmptyState/>
     ) : (
         <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(280px,auto))] w-[70%] mx-auto mt-8">
-            {markets.map(({_account, publicKey}, i) => {
+            {markets.map(({account, publicKey}, i) => {
                 const marketPool = marketsPool[publicKey.toBase58()];
                 const keyStr = publicKey.toBase58();
 
@@ -123,7 +123,7 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
                 const yes = Number(marketPool?.yesLiquidity ?? 0);  // We are going to compute no based on yes
                 const no = Number(marketPool?.noLiquidity ?? 0);
                 const yesAndNoSummedUp = yes + no;
-                const totalMarketVolume = Number(marketPool?.usdCollateral ?? 0);
+                const totalMarketVolume = Number(account.marketVolume) / 10 ** 9;
                 const yesPrice = yesAndNoSummedUp ? Math.floor((no / yesAndNoSummedUp) * 100) : 50;
 
                 return (

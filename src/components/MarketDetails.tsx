@@ -86,7 +86,7 @@ export default function MarketDetails() {
 
                 const yes = Number(poolAcct?.yesLiquidity ?? 0);
                 const no = Number(poolAcct?.noLiquidity ?? 0);
-                const totalVol = Number(poolAcct?.usdCollateral ?? 0) / 10 ** 9;
+                const totalVol = Number(marketAcct.marketVolume) / 10 ** 9;
                 const prob = yes + no ? Math.floor((yes / (yes + no)) * 100) : 50;
 
                 setYesProb(prob);
