@@ -2,7 +2,6 @@ import React, {Dispatch, SetStateAction, useEffect, useMemo, useRef, useState} f
 import {Button} from "@/components/ui/button";
 import {Cell, Pie, PieChart, ResponsiveContainer, Tooltip} from "recharts";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
-import {useWallet} from "@solana/wallet-adapter-react";
 import {PublicKey, Transaction} from "@solana/web3.js";
 import {getRemoveLiquidityPotentialBenefits} from "@/blockchain/computeLiquidityBenefits";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
@@ -13,6 +12,7 @@ import {toast} from "sonner";
 import {useAnchorProgram} from "@/lib/anchor";
 import {Frown} from "lucide-react";
 import {supabase} from "@/lib/supabase";
+import {confirmTransaction} from "@/blockchain/blockchainTransactions";
 
 type Props = {
     submitting: boolean;
@@ -122,26 +122,12 @@ export default function RemoveLiquidityForm({
             const _sig = await provider.sendAndConfirm(tx);
 
             // Confirm the transaction
-            const latestBlockHash = await connection.getLatestBlockhash();
-            await connection.confirmTransaction({
-                blockhash: latestBlockHash.blockhash,
-                lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-                signature: _sig
-            }, 'confirmed');
-
-            // Parse the transaction logs to find the purchased shares event
-            const blockchainConfirmation = await connection.getTransaction(_sig, {
-                commitment: 'confirmed',
-                maxSupportedTransactionVersion: 0,
-            });
-            const purchasedAt = blockchainConfirmation?.blockTime ? new Date(blockchainConfirmation.blockTime * 1000).toISOString() : new Date().toISOString();
-            const parsedEvents = [...parser.parseLogs(blockchainConfirmation?.meta?.logMessages || [])];
-            const purchasedEvent = parsedEvents.find(event => event.name === "liquidityRemovedEvent");
-            if (!purchasedEvent) {
-                throw new Error("No liquidity removed event found in transaction logs. Try again.");
-            }
-
-            const transaction = purchasedEvent?.data;
+            const {transactionTime, tx_slot, transaction} = await confirmTransaction(
+                connection,
+                _sig,
+                parser,
+                "liquidityRemovedEvent"
+            );
 
             let received_outcome_shares, received_outcome;
             if (transaction) {
@@ -161,11 +147,11 @@ export default function RemoveLiquidityForm({
             const {error} = await supabase.from("liquidity_pool_history").upsert(
                 [{
                     tx_signature: _sig,
-                    tx_slot: blockchainConfirmation?.slot,
+                    tx_slot: tx_slot,
                     market_pubkey: marketKey,
                     user_pubkey: wallet?.publicKey,
                     added_liquidity: false,
-                    created_at: purchasedAt,
+                    created_at: transactionTime,
                     lp_shares_used: transaction ? Number(transaction.burntLpShares) / 10 ** 9 : 0,
                     usd_received: transaction ? Number(transaction.equivalentUsd) / 10 ** 9 : 0,
                     received_outcome_shares: received_outcome_shares,

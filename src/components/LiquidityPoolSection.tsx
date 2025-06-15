@@ -7,17 +7,15 @@ import {
     Cell,
     ResponsiveContainer,
     Tooltip,
-    Legend,
 } from "recharts";
 import AddLiquidityForm from "@/components/AddLiquidityForm";
 import RemoveLiquidityForm from "@/components/RemoveLiquidityForm";
 import {AnimatePresence, motion} from "framer-motion";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
 import {getRemoveLiquidityPotentialBenefits} from "@/blockchain/computeLiquidityBenefits";
-import {getTransactionDetails, useLiquidityPoolListener} from "@/blockchain/heliusEventListener";
+import {getTransactionDetails} from "@/blockchain/heliusEventListener";
 import {supabase} from "@/lib/supabase";
 import {toast} from "sonner";
-import {EventParser} from "@coral-xyz/anchor";
 import TransactionDetailModal from "@/components/TransactionDetailModal";
 import {Frown} from "lucide-react";
 
@@ -30,7 +28,8 @@ type Props = {
     reloadLiquidityPool: number;
     setReloadLiquidityPool: Dispatch<SetStateAction<number>>;
     marketDataLoading: boolean,
-    liquidityEmptyModal: boolean
+    liquidityEmptyModal: boolean,
+    unifiedHandlerRef: React.RefObject<Record<string, (args: { transactionData: any; txSignature: string }) => void>>
 };
 
 export interface LiquidityPoolTransaction {
@@ -58,16 +57,16 @@ export default function LiquidityPoolSection({
                                                  reloadLiquidityPool,
                                                  setReloadLiquidityPool,
                                                  marketDataLoading,
-                                                 liquidityEmptyModal
+                                                 liquidityEmptyModal,
+                                                 unifiedHandlerRef
                                              }: Props) {
-    const {connection, wallet, program} = useAnchorProgram();
+    const {connection, wallet} = useAnchorProgram();
 
     const [action, setAction] = useState<"add" | "remove">("add");
     const [prevAction, setPrevAction] = useState<"add" | "remove">("add");
     const [submitting, setSubmitting] = useState(false);
     const [userShares, setUserShares] = useState<number>(0);
     const [userSharesValue, setUserSharesValue] = useState<number>(0);
-    const [parser, _setParser] = useState(new EventParser(program.programId, program.coder))
     const [poolTransactions, setPoolTransactions] = useState<LiquidityPoolTransaction[]>([]);
     const [selectedTransaction, setSelectedTransaction] = useState<LiquidityPoolTransaction | null>(null);
 
@@ -183,12 +182,20 @@ export default function LiquidityPoolSection({
             setReloadMarket((prev: any) => prev + 1);
         }, [])
 
-    useLiquidityPoolListener(
-        handleNewLiquidityAddedAction,
-        handleNewLiquidityRemovedAction,
-        marketPubkey,
-        parser
-    )
+    useEffect(() => {
+        unifiedHandlerRef.current["liquidityAddedEvent"] = ({transactionData, txSignature}) => {
+            handleNewLiquidityAddedAction({
+                transactionData,
+                txSignature
+            })
+        }
+        unifiedHandlerRef.current["liquidityRemovedEvent"] = ({transactionData, txSignature}) => {
+            handleNewLiquidityRemovedAction({
+                transactionData,
+                txSignature
+            })
+        }
+    })
 
     useEffect(() => {
         const fetchDbMarketData = async () => {

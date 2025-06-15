@@ -10,7 +10,7 @@ import {USD_MINT} from "@/lib/constants";
 import {toast} from "sonner";
 import {createAssociatedTokenAccounts} from "@/blockchain/createAssociatedTokenAccounts";
 import {AnchorProvider, EventParser} from "@coral-xyz/anchor";
-import {getTransactionDetails, usePurchaseSharesListener} from "@/blockchain/heliusEventListener";
+import {getTransactionDetails} from "@/blockchain/heliusEventListener";
 import {supabase} from "@/lib/supabase";
 import {motion, AnimatePresence} from "framer-motion";
 import {Frown} from "lucide-react";
@@ -43,7 +43,8 @@ interface TradeInfo {
     setYesPrice: (price: number) => void,
     setNoPrice: (price: number) => void
     lastEventSlot: React.RefObject<number>,
-    liquidityEmptyModal: boolean
+    liquidityEmptyModal: boolean,
+    unifiedHandlerRef: React.RefObject<Record<string, (args: { transactionData: any; txSignature: string }) => void>>
 }
 
 export default function MarketTradeSection({
@@ -57,7 +58,8 @@ export default function MarketTradeSection({
                                                setYesPrice,
                                                setNoPrice,
                                                lastEventSlot,
-                                               liquidityEmptyModal
+                                               liquidityEmptyModal,
+                                               unifiedHandlerRef
                                            }: TradeInfo) {
     const {wallet, program, connection} = useAnchorProgram(); // Assuming you have a hook to get the wallet context
     const [selectedOutcome, setSelectedOutcome] = useState<"yes" | "no">("yes");
@@ -225,13 +227,14 @@ export default function MarketTradeSection({
     }
 
     // Listen to the Helius events for market updates
-    usePurchaseSharesListener(
-        marketKey,
-        program.programId,
-        setReloadMarket,
-        parser,
-        handleNewPurchaseBlockchainEvent
-    )
+    useEffect(() => {
+        unifiedHandlerRef.current["purchasedOutcomeSharesEvent"] = ({transactionData, txSignature}) => {
+            handleNewPurchaseBlockchainEvent({
+                transactionData,
+                txSignature
+            }).then();
+        }
+    }, [])
 
     // @ts-ignore
     let MAX_AMOUNT = wallet?.publicKey ? userBalance : CONST_MAX_AMOUNT;

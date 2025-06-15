@@ -12,6 +12,8 @@ import {Button} from "@/components/ui/button";
 import {CheckCircle} from "lucide-react";
 import {DUMMY_PUBKEY} from "@/lib/constants";
 import ResolveMarketModal from "@/components/ResolveMarketModal";
+import {EventParser} from "@coral-xyz/anchor";
+import {useLogsListener} from "@/blockchain/heliusEventListener";
 
 export default function MarketDetails() {
     const {marketPubkey} = useParams();          // ← from route
@@ -35,6 +37,17 @@ export default function MarketDetails() {
     const [reloadLiquidityPool, setReloadLiquidityPool] = useState(0);
     const lastEventSlot = useRef<number>(0);
     const dataExists = useRef(false);
+    const unifiedHandlerRef = useRef<
+        Record<string, (args: { transactionData: any; txSignature: string }) => void>
+    >({});
+    const [parser, _setParser] = useState(new EventParser(program.programId, program.coder))
+
+    // Listen for changes on this market
+    useLogsListener(
+        marketPubkey ? new PublicKey(marketPubkey) : DUMMY_PUBKEY,
+        parser,
+        unifiedHandlerRef
+    );
 
     // Loading market question from db
     useEffect(() => {
@@ -254,6 +267,7 @@ export default function MarketDetails() {
                     setTransactionDetails={setTransactionDetails}
                     lastEventSlot={lastEventSlot}
                     liquidityEmptyModal={liquidityEmptyModal}
+                    unifiedHandlerRef={unifiedHandlerRef}
                 />
             </div>
 
@@ -345,6 +359,7 @@ export default function MarketDetails() {
                         reloadLiquidityPool={reloadLiquidityPool}
                         marketDataLoading={marketDataLoading}
                         liquidityEmptyModal={liquidityEmptyModal}
+                        unifiedHandlerRef={unifiedHandlerRef}
                     />
                 ) : (
                     <p className="text-slate-400">Loading pool …</p>

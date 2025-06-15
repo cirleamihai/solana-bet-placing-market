@@ -13,6 +13,7 @@ import {toast} from "sonner";
 import {useMarketContext} from "@/components/MarketContext";
 import {Frown} from "lucide-react";
 import {supabase} from "@/lib/supabase";
+import {confirmTransaction} from "@/blockchain/blockchainTransactions";
 
 type Props = {
     submitting: boolean;
@@ -141,22 +142,12 @@ export default function AddLiquidityForm({
             const _sig = await provider.sendAndConfirm(tx);
 
             // Confirm the transaction
-            const latestBlockHash = await connection.getLatestBlockhash();
-            await connection.confirmTransaction({
-                blockhash: latestBlockHash.blockhash,
-                lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-                signature: _sig
-            }, 'confirmed');
-
-            // Parse the transaction logs to find the purchased shares event
-            const blockchainConfirmation = await connection.getTransaction(_sig, {
-                commitment: 'confirmed',
-                maxSupportedTransactionVersion: 0,
-            });
-            const purchasedAt = blockchainConfirmation?.blockTime ? new Date(blockchainConfirmation.blockTime * 1000).toISOString() : new Date().toISOString();
-            const parsedEvents = [...parser.parseLogs(blockchainConfirmation?.meta?.logMessages || [])];
-            const purchasedEvent = parsedEvents.find(event => event.name === "liquidityAddedEvent");
-            const transaction = purchasedEvent?.data;
+            const {transactionTime, transaction, tx_slot} = await confirmTransaction(
+                connection,
+                _sig,
+                parser,
+                "liquidityAddedEvent"
+            )
 
             let received_outcome_shares, received_outcome;
             if (transaction) {
@@ -178,11 +169,11 @@ export default function AddLiquidityForm({
             const {error} = await supabase.from("liquidity_pool_history").upsert(
                 [{
                     tx_signature: _sig,
-                    tx_slot: blockchainConfirmation?.slot,
+                    tx_slot: tx_slot,
                     market_pubkey: marketKey,
                     user_pubkey: wallet?.publicKey,
                     added_liquidity: true,
-                    created_at: purchasedAt,
+                    created_at: transactionTime,
                     usd_used: Number(transaction.amount) / 10 ** 9,
                     lp_shares_received: transaction ? Number(transaction.liquiditySharesGained) / 10 ** 9 : 0,
                     received_outcome_shares: received_outcome_shares,
