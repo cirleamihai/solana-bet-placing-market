@@ -15,6 +15,7 @@ import {supabase} from "@/lib/supabase";
 import {motion, AnimatePresence} from "framer-motion";
 import {Frown} from "lucide-react";
 import {useMarketContext} from "@/components/MarketContext";
+import {confirmTransaction} from "@/blockchain/blockchainTransactions";
 
 const CONST_MAX_AMOUNT = 100_000_000; // 100 million
 
@@ -34,7 +35,7 @@ export interface TransactionDetails {
 interface TradeInfo {
     marketPool: any,
     market: any,
-    marketKey: any,
+    marketKey: PublicKey,
     reloadMarket: number,
     setReloadMarket: (value: any) => void,
     transactionDetails: TransactionDetails[],
@@ -147,6 +148,82 @@ export default function MarketTradeSection({
 
         }, []);
 
+    const withdrawUserWinnings = async () => {
+        if (!wallet?.publicKey || !marketPool || liquidityEmptyModal) return;
+
+        const ataInstructions: any[] = [];
+        setSubmitting(true);
+
+        const [poolKey] = PublicKey.findProgramAddressSync(
+            [Buffer.from("pool"), marketKey?.toBuffer() ?? Buffer.from("")],
+            program.programId
+        )
+        const [vaultPda] = PublicKey.findProgramAddressSync(
+            [Buffer.from("vault"), marketKey.toBuffer()],
+            program.programId
+        );
+
+        const userUsd = (await createAssociatedTokenAccounts(USD_MINT, wallet.publicKey, wallet, connection, ataInstructions)).ata;
+        const userYesAccount = (await createAssociatedTokenAccounts(market.yesMint, wallet.publicKey, wallet, connection, ataInstructions)).ata;
+        const userNoAccount = (await createAssociatedTokenAccounts(market.noMint, wallet.publicKey, wallet, connection, ataInstructions)).ata;
+
+        try {
+            const tx = new Transaction();
+            ataInstructions.length > 0 && tx.add(...ataInstructions);
+
+            const instruction = await program.methods
+                .resolveUserWinnings()
+                .accounts({
+                    market: marketKey.toBase58(),
+                    pool: poolKey,
+                    vault: vaultPda,
+                    yesMint: market.yesMint,
+                    noMint: market.noMint,
+                    lpShareMint: market.lpShareMint,
+                    userUsdAccount: userUsd,
+                    userYesAccount: userYesAccount,
+                    userNoAccount: userNoAccount,
+                    user: wallet.publicKey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction()
+
+            tx.add(instruction);
+            const provider = program.provider as AnchorProvider;
+            const _sig = await provider.sendAndConfirm(tx);
+
+            const {transactionTime, tx_slot} = await confirmTransaction(
+                connection,
+                _sig,
+                parser,
+                "resolveUserWinningsEvent"
+            )
+
+            const {error} = await supabase.from("user_winnings")
+                .upsert([{
+                    tx_signature: _sig,
+                    market_pubkey: marketKey.toBase58(),
+                    user_pubkey: wallet.publicKey.toBase58(),
+                    money_invested: moneyInvested,
+                    user_winnings: profitMade,
+                    created_at: transactionTime,
+                    tx_slot: tx_slot,
+                }])
+
+            if (error) {
+                throw new Error(error.message)
+            }
+
+            toast.success("Successfully withdrew winnings!");
+            setReloadMarket((prev: any) => prev + 1);
+        } catch (e) {
+            toast.error("Failed to withdraw winnings. Try again later.")
+            console.log("Error creating withdraw instruction:", e);
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
     // Listen to the Helius events for market updates
     usePurchaseSharesListener(
         marketKey,
@@ -218,7 +295,7 @@ export default function MarketTradeSection({
                     selectedMint
                 ) // Assuming input is in SOL units
                 .accounts({
-                    market: marketKey,
+                    market: marketKey.toBase58(),
                     pool: poolKey,
                     vault: market.vault,
                     yesMint: market.yesMint,
@@ -238,23 +315,12 @@ export default function MarketTradeSection({
             const provider = program.provider as AnchorProvider;
             const _sig = await provider.sendAndConfirm(tx);
 
-            // Confirm the transaction
-            const latestBlockHash = await connection.getLatestBlockhash();
-            await connection.confirmTransaction({
-                blockhash: latestBlockHash.blockhash,
-                lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-                signature: _sig
-            }, 'confirmed');
-
-            // Parse the transaction logs to find the purchased shares event
-            const blockchainConfirmation = await connection.getTransaction(_sig, {
-                commitment: 'confirmed',
-                maxSupportedTransactionVersion: 0,
-            });
-            const purchasedAt = blockchainConfirmation?.blockTime ? new Date(blockchainConfirmation.blockTime * 1000).toISOString() : new Date().toISOString();
-            const parsedEvents = [...parser.parseLogs(blockchainConfirmation?.meta?.logMessages || [])];
-            const purchasedEvent = parsedEvents.find(event => event.name === "purchasedOutcomeSharesEvent");
-            const transaction = purchasedEvent?.data;
+            const {transactionTime, transaction, tx_slot} = await confirmTransaction(
+                connection,
+                _sig,
+                parser,
+                "purchasedOutcomeSharesEvent"
+            )
 
             // Log the transaction to our supabase
             const {error} = await supabase.from("bets").upsert(
@@ -262,14 +328,14 @@ export default function MarketTradeSection({
                     {
                         tx_signature: _sig,
                         market_pubkey: marketKey,
-                        user_pubkey: wallet?.publicKey.toBase58(),
+                        user_pubkey: wallet.publicKey.toBase58(),
                         purchased_outcome: selectedOutcome,
                         amount_purchased: Number(transaction.wantedSharesPurchased) / 10 ** 9, // Convert from decimals to shares
                         money_spent: Number(transaction.amount) / 10 ** 9,
                         yes_price: yesPrice,
                         no_price: noPrice,
-                        created_at: purchasedAt,
-                        tx_slot: blockchainConfirmation?.slot
+                        created_at: transactionTime,
+                        tx_slot: tx_slot
                     }
                 ],
                 {onConflict: "tx_signature",}
@@ -282,8 +348,8 @@ export default function MarketTradeSection({
             }
 
             // Set the remaining tokens for yes and no outcomes
-            if ((blockchainConfirmation?.slot ?? 0) > lastEventSlot.current) {
-                lastEventSlot.current = blockchainConfirmation?.slot ?? 0;
+            if (tx_slot > lastEventSlot.current) {
+                lastEventSlot.current = tx_slot;
                 setYesRemainingTokens(Number(transaction.poolRemainingYesTokens));
                 setNoRemainingTokens(Number(transaction.poolRemainingNoTokens));
             }
@@ -524,7 +590,7 @@ export default function MarketTradeSection({
                             <h2 className="text-2xl font-semibold text-sky-400 mb-2">Market Resolved!</h2>
                             <p className="text-slate-300">
                                 The Market has been resolved by an elected third party! <br/>
-                                { (yesSharesOwned || noSharesOwned) ?
+                                {(yesSharesOwned || noSharesOwned) ?
                                     "You cannot trade anymore - remove your shares from the pool."
                                     : "You cannot trade anymore - chose another market."
                                 }
@@ -543,31 +609,59 @@ export default function MarketTradeSection({
                                     {market.outcome ? "Yes" : "No"}
                                 </div>
                             </div>
-                            {(yesSharesOwned || noSharesOwned) && (
+                            {(yesSharesOwned > 0 || noSharesOwned > 0) && (
                                 <div className="mt-6 text-center">
                                     <p className="text-slate-400 mb-3 font-medium text-sm">
-                                        You are eligible to withdraw your winnings.
+                                        You are eligible to withdraw your {profitMade > 0 ? "Winnings" : "Shares"}.
                                     </p>
                                     <button
-                                        onClick={() => {}}
-                                        className="inline-flex items-center cursor-pointer gap-2 bg-purple-400 hover:bg-purple-500 text-black font-semibold px-5 py-2.5 rounded-md shadow-md hover:shadow-lg transition"
+                                        onClick={withdrawUserWinnings}
+                                        disabled={submitting}
+                                        className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-md font-semibold transition shadow-md ${
+                                            submitting ? "bg-purple-300 cursor-not-allowed" : "bg-purple-400 hover:bg-purple-500 cursor-pointer"
+                                        } text-black hover:shadow-lg`}
                                     >
-                                        {/* Coin icon */}
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            className="h-5 w-5"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                            strokeWidth={2}
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3m0 0c1.657 0 3-1.343 3-3s-1.343-3-3-3m0 6v3m0-3v-3"
-                                            />
-                                        </svg>
-                                        Withdraw Winnings
+                                        {submitting ? (
+                                            // Spinner icon
+                                            <svg
+                                                className="animate-spin h-4 w-4 text-black"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <circle
+                                                    className="opacity-25"
+                                                    cx="12"
+                                                    cy="12"
+                                                    r="10"
+                                                    stroke="currentColor"
+                                                    strokeWidth="4"
+                                                ></circle>
+                                                <path
+                                                    className="opacity-75"
+                                                    fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"
+                                                ></path>
+                                            </svg>
+                                        ) : (
+                                            // Coin icon
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                className="h-5 w-5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3m0 0c1.657 0 3-1.343 3-3s-1.343-3-3-3m0 6v3m0-3v-3"
+                                                />
+                                            </svg>
+                                        )}
+
+                                        <span>{submitting ? "Withdrawing..." : `Withdraw ${profitMade > 0 ? "Winnings" : "Shares"}`}</span>
                                     </button>
                                 </div>
                             )}

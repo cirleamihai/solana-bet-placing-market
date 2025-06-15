@@ -33,10 +33,24 @@ export default function ResolveMarketModal({onClose, marketTitle, market, market
 
             const tx = new Transaction();
             ataInstructions.length > 0 && tx.add(...ataInstructions);
+            console.log(marketKey.toBase58())
+            const [poolPda] = PublicKey.findProgramAddressSync(
+                [Buffer.from("pool"), marketKey.toBuffer()],
+                program.programId
+            );
+            console.log(poolPda.toBase58())
+
+            const accountInfo = await program.provider.connection.getAccountInfo(poolPda);
+            if (!accountInfo) {
+                throw new Error("Pool PDA not initialized");
+            }
+            console.log(accountInfo.owner.toBase58())
+
             const ix = await program.methods
                 .resolveMarket(selectedOutcome === "yes" ? 1 : 0)
                 .accounts({
                     market: marketKey,
+                    pool: poolPda,
                     oracle: market.oracle,
                 })
                 .instruction()
@@ -75,7 +89,7 @@ export default function ResolveMarketModal({onClose, marketTitle, market, market
 
             setTimeout(() => {
                 onClose();
-            }, 2000); // Close modal after 2 seconds
+            }, 1000); // Close modal after 1 second
 
         } catch (error) {
             toast.error("Error resolving market. Please try again.");

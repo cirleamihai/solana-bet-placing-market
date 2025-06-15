@@ -244,7 +244,7 @@ export default function MarketDetails() {
             <div className={"mb-5"}>
                 <MarketTradeSection
                     marketPool={poolAccount}
-                    marketKey={marketPubkey ? new PublicKey(marketPubkey) : null}
+                    marketKey={marketPubkey ? new PublicKey(marketPubkey) : DUMMY_PUBKEY}
                     market={market}
                     reloadMarket={reloadMarket}
                     setReloadMarket={setReloadMarket}

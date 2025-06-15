@@ -244,7 +244,9 @@ export default function RemoveLiquidityForm({
             Number(poolAccount.liquidityShares) / 10 ** 9,
             Number(poolAccount.yesLiquidity) / 10 ** 9,
             Number(poolAccount.noLiquidity) / 10 ** 9,
-            sharesToRemove
+            sharesToRemove,
+            market.resolved,
+            market.outcome === 1 ? "yes" : "no"
         )
         setUsdToReceiveForLPShares(liquidityBenefits.moneyToReceive);
 

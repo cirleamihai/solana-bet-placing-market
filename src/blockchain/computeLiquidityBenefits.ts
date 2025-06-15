@@ -48,12 +48,24 @@ export const getRemoveLiquidityPotentialBenefits = (
     yesLiquidity: number,
     noLiquidity: number,
     sharesToRemove: number,
+    isMarketResolved: boolean,
+    winningOutcome: "yes" | "no"
 ) => {
     if (yesLiquidity === noLiquidity || sharesToRemove == 0) {
         return {
             moneyToReceive: sharesToRemove,
             yesShares: 0,
             noShares: 0
+        }
+    }
+
+    if (isMarketResolved) {
+        const winningLiquidity = winningOutcome === "yes" ? yesLiquidity : noLiquidity;
+
+        return {
+            moneyToReceive: sharesToRemove * winningLiquidity / liquidityShares,
+            yesShares: winningOutcome === "yes" ? sharesToRemove : 0,
+            noShares: winningOutcome === "no" ? sharesToRemove : 0
         }
     }
 

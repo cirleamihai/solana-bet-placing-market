@@ -274,7 +274,9 @@ export default function LiquidityPoolSection({
             Number(poolAccount.liquidityShares) / 10 ** 9,
             Number(poolAccount.yesLiquidity) / 10 ** 9,
             Number(poolAccount.noLiquidity) / 10 ** 9,
-            userShares
+            userShares,
+            market.resolved, // is market resolved
+            market.outcome === 1 ? "yes" : "no" // winning outcome
         )
         setUserSharesValue(liquidityBenefits.moneyToReceive);
     }, [reloadMarket, userShares]);
