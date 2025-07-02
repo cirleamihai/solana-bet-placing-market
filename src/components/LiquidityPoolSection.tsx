@@ -74,6 +74,11 @@ export default function LiquidityPoolSection({
         if (!poolAccount || !poolAccount.liquidityShares) return 0;
         return Number(poolAccount.liquidityShares) / 10 ** 9;
     }, [poolAccount?.liquidityShares])
+
+    const liquidityPoolValue = useMemo(() => {
+        if (!poolAccount || !poolAccount.liquidityValue) return 0;
+        return Number(poolAccount.liquidityValue) / 10 ** 9;
+    }, [poolAccount?.liquidityValue]);
     const userPercentageOfThePool = useMemo(() => {
         if (liquidityPoolShares === 0) return 0;
         return (userShares / liquidityPoolShares) * 100;
@@ -359,6 +364,9 @@ export default function LiquidityPoolSection({
                                 </div>
                                 <div className="text-md font-semibold text-blue-400">
                                     {liquidityPoolShares.toLocaleString()} Shares
+                                </div>
+                                <div className="text-md font-semibold text-emerald-400">
+                                    ${liquidityPoolValue.toLocaleString()} USD
                                 </div>
                             </div>
 
