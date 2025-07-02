@@ -133,6 +133,8 @@ export default function MarketGrid({searchQuery}: MarketGridProps) {
                         question={metadata[keyStr] || `Market #${i + 1}`}
                         yesProbability={yesPrice}
                         volume={`$${(totalMarketVolume).toLocaleString("en-US", )}`}
+                        marketResolved={account.resolved}
+                        outcome={account.outcome}
                     />
                 );
             })}
